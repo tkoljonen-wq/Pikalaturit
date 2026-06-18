@@ -1,0 +1,398 @@
+:root {
+  --bg: #0b1220;
+  --bg-card: #131c2e;
+  --bg-card-2: #1a2540;
+  --text: #e8edf6;
+  --text-dim: #95a3bd;
+  --green: #22c55e;
+  --yellow: #eab308;
+  --red: #ef4444;
+  --gray: #64748b;
+  --accent: #38bdf8;
+  --border: #243049;
+  --nav-h: 64px;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; margin: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+.app {
+  max-width: 640px;
+  margin: 0 auto;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  padding: env(safe-area-inset-top) 16px 0;
+  padding-top: max(env(safe-area-inset-top), 12px);
+}
+
+.app-header h1 {
+  font-size: 20px;
+  margin: 12px 0 2px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.content {
+  flex: 1;
+  padding: 8px 16px calc(var(--nav-h) + 24px);
+}
+
+/* Alanavigaatio (peukalo-ystävällinen) */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--nav-h) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--bg-card);
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-around;
+  align-items: stretch;
+  z-index: 50;
+}
+.bottom-nav a {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: 11px;
+}
+.bottom-nav a.active { color: var(--green); }
+.bottom-nav .ico { font-size: 20px; line-height: 1; }
+
+/* Kortit */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.hero {
+  text-align: center;
+  padding: 24px 16px;
+}
+.hero .big {
+  font-size: 56px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--green);
+}
+.hero .label { color: var(--text-dim); font-size: 15px; margin-top: 8px; }
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.stat {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+}
+.stat .num { font-size: 28px; font-weight: 700; }
+.stat .cap { color: var(--text-dim); font-size: 13px; margin-top: 2px; }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+.badge .dot { width: 8px; height: 8px; border-radius: 50%; }
+.dot-ok { background: var(--green); }
+.dot-stale { background: var(--yellow); }
+.dot-old { background: var(--gray); }
+
+.muted { color: var(--text-dim); font-size: 13px; }
+.row-between { display: flex; justify-content: space-between; align-items: center; }
+
+/* Lomake / login */
+.login-wrap {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.login-card { width: 100%; max-width: 360px; }
+input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-card-2);
+  color: var(--text);
+  font-size: 16px;
+  margin-top: 10px;
+}
+button.primary {
+  width: 100%;
+  margin-top: 14px;
+  padding: 13px;
+  border-radius: 12px;
+  border: none;
+  background: var(--green);
+  color: #04210f;
+  font-size: 16px;
+  font-weight: 700;
+}
+button.link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 14px;
+}
+.error { color: var(--red); font-size: 14px; margin-top: 10px; }
+
+/* Segmentoitu valitsin (aikaväli / mittari) */
+.segmented {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 12px;
+}
+.segmented button {
+  flex: 1;
+  padding: 9px 6px;
+  border: none;
+  border-radius: 9px;
+  background: none;
+  color: var(--text-dim);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.segmented button.active {
+  background: var(--bg-card-2);
+  color: var(--text);
+}
+
+/* Asemahaku + seuranta */
+.search-box input { margin-top: 0; }
+.search-results { padding: 6px; }
+.result-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 10px;
+  border: none;
+  background: none;
+  color: var(--text);
+  text-align: left;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.result-row:not(:last-child) { border-bottom: 1px solid var(--border); }
+.result-row:disabled { opacity: 0.55; cursor: default; }
+.rr-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rr-name { font-size: 15px; font-weight: 600; }
+.rr-text .muted { font-size: 12px; }
+.rr-add {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--bg-card-2);
+  color: var(--green);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.station-card { padding: 14px 16px; }
+.station-title { min-width: 0; }
+.st-name { font-size: 16px; font-weight: 700; }
+.station-title .muted { font-size: 12px; margin-top: 2px; }
+.icon-btn {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: none;
+  color: var(--text-dim);
+  font-size: 14px;
+  cursor: pointer;
+}
+.station-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin-top: 10px;
+  font-size: 14px;
+}
+.station-status .ss-main { font-size: 15px; }
+
+/* Kartta */
+.map-view {
+  position: relative;
+  /* Täytä näkyvä alue: vähennä otsikko + navi + .content-paddingit. */
+  height: calc(100dvh - var(--nav-h) - 96px);
+  min-height: 340px;
+  margin: -8px -16px 0; /* riko .content-paddingit reunoista reunaan */
+  border-top: 1px solid var(--border);
+}
+.map-canvas {
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+}
+.leaflet-container { background: var(--bg); font: inherit; }
+.leaflet-control-attribution {
+  background: rgba(11, 18, 32, 0.7) !important;
+  color: var(--text-dim) !important;
+}
+.leaflet-control-attribution a { color: var(--accent) !important; }
+
+.map-search {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  z-index: 1100;
+}
+.map-search input {
+  margin-top: 0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+}
+.map-results {
+  margin-top: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+.map-results button {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+}
+.map-results button:not(:last-child) { border-bottom: 1px solid var(--border); }
+.map-results .muted { font-size: 12px; }
+
+.map-badge {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  z-index: 1100;
+  background: rgba(11, 18, 32, 0.82);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.sheet {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  z-index: 1100;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+}
+.sheet-btn {
+  width: 100%;
+  margin-top: 12px;
+  padding: 11px;
+  border-radius: 12px;
+  border: 1px solid var(--green);
+  background: var(--green);
+  color: #04210f;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.sheet-btn.watched {
+  background: none;
+  color: var(--green);
+}
+
+/* Asetukset */
+.section-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+}
+.link-a { color: var(--accent); text-decoration: none; }
+.sheet-btn.danger {
+  background: none;
+  border-color: var(--red);
+  color: var(--red);
+}
+.sheet-btn:disabled { opacity: 0.45; cursor: default; }
+
+/* "Hae nyt" -suorahaku */
+.refresh-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.refresh-btn {
+  flex: none;
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  background: none;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.refresh-btn:disabled { opacity: 0.55; cursor: default; }
+
+.center-msg { text-align: center; color: var(--text-dim); padding: 40px 16px; }
+.source { font-size: 11px; color: var(--text-dim); text-align: center; padding: 8px 0 0; }

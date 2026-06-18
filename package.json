@@ -11,7 +11,8 @@
     "collector": "tsx collector/run.ts",
     "db:migrate": "node --env-file-if-exists=.env scripts/migrate.mjs",
     "collect:metadata": "node --env-file-if-exists=.env --import tsx collector/run.ts metadata",
-    "collect:status": "node --env-file-if-exists=.env --import tsx collector/run.ts status"
+    "collect:status": "node --env-file-if-exists=.env --import tsx collector/run.ts status",
+    "create-user": "node --env-file-if-exists=.env scripts/create-user.mjs"
   },
   "devDependencies": {
     "@types/node": "^25.9.3",

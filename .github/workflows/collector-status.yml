@@ -1,12 +1,14 @@
 name: Collector – status (5 min)
 
 # Hakee AFIR-statukset ja päivittää aggregaatit. Suunnitelma §11.2.
-# Huom: GitHub Actions -cron ei ole tarkka 5 min, vaan ajot voivat viivästyä
-# ruuhkassa. Tämä on hyväksytty MVP:ssä (lähes reaaliaikainen riittää).
+#
+# HUOM: 5 min ajastus on SIIRRETTY Supabasen sisäiseen croniin (pg_cron + pg_net
+# → Edge Function collector-status), koska GitHub Actions -schedule ei laukennut
+# luotettavasti (uusi repo + */5 throttlaus). Tästä on jäljellä vain manuaali-
+# laukaisu (workflow_dispatch) varafallbackiksi. Ks. supabase/functions/collector-status
+# ja migraatio 20260618130000_cron_status.sql.
 
 on:
-  schedule:
-    - cron: "*/5 * * * *"
   workflow_dispatch: {}
 
 # Estä päällekkäiset ajot; vanha ajo saa valmistua.

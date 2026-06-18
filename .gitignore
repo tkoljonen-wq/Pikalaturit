@@ -12,3 +12,9 @@ dist/
 # Supabase
 .branches/
 .temp/
+
+# Claude Code -paikallinen työkalutila (ei versionhallintaan)
+.claude/
+
+# TypeScript-inkrementaalibuildin välimuisti
+*.tsbuildinfo

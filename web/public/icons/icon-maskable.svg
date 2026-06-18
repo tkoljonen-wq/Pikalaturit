@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Maskable: täysi tausta reunasta reunaan, salama turva-alueella (~64px reunus). -->
+  <rect width="512" height="512" fill="#0b1220"/>
+  <path d="M300 120 L196 304 H262 L236 392 L348 248 H280 Z"
+        fill="#22c55e" stroke="#16a34a" stroke-width="7" stroke-linejoin="round"/>
+</svg>

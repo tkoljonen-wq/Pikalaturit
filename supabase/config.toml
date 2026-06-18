@@ -9,3 +9,8 @@ major_version = 15
 # Vain oma tili sallittu (suunnitelma §14). Estä avoin rekisteröityminen ja
 # salli kirjautuminen vain sallitulla sähköpostilla / Google-tilillä.
 enable_signup = false
+
+# Statuskeruun Edge Function. verify_jwt = false → cron voi kutsua ilman käyttäjä-
+# JWT:tä; suojaus tehdään x-cron-secret -headerilla (ks. funktio + cron-migraatio).
+[functions.collector-status]
+verify_jwt = false
