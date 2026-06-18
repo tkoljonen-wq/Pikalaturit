@@ -1,0 +1,595 @@
+{
+  "type": "FeatureCollection",
+  "modifiedAt": "2026-06-18T10:42:38.301Z",
+  "pagination": {
+    "limit": 5
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          24.875,
+          60.1911
+        ]
+      },
+      "properties": {
+        "id": "70d5121e-0308-11f0-9e08-42010aa40043",
+        "name": "Porsche Destination Charging Kalastajantorpan Tennisklubi - AC 2",
+        "chargingWhenClosed": true,
+        "openingTimes": {
+          "twentyFourSeven": true,
+          "regularHours": []
+        },
+        "operator": {
+          "id": "FI*911",
+          "partyId": "911",
+          "countryCode": "FI",
+          "details": {
+            "logo": {
+              "url": "https://api.cpm.chargepoint-management.com/hubject/logo-thumbnail.png",
+              "type": "png",
+              "width": 150,
+              "height": 150,
+              "category": "OPERATOR",
+              "thumbnail": "https://api.cpm.chargepoint-management.com/hubject/logo-thumbnail.png"
+            },
+            "name": "Porsche Sales & Marketplace",
+            "website": "https://api.cpm.chargepoint-management.com/hubject"
+          }
+        },
+        "address": {
+          "street": "Kärkitie 4",
+          "city": "Helsinki",
+          "postalCode": "00330",
+          "countryCode": "FIN"
+        },
+        "createdAt": "2025-08-11T12:40:12.295Z",
+        "modifiedAt": "2026-06-18T05:11:38.349Z",
+        "evses": [
+          {
+            "id": "FI*911*E*PDC*FI1000244*0000001",
+            "capabilities": [
+              "CREDIT_CARD_PAYABLE",
+              "REMOTE_START_STOP_CAPABLE"
+            ],
+            "acceptedServiceProviders": null,
+            "floorLevel": null,
+            "geometry": null,
+            "physicalReference": "000001",
+            "directions": null,
+            "createdAt": "2025-08-11T12:40:12.474Z",
+            "modifiedAt": "2026-06-18T05:11:38.323Z",
+            "connectors": [
+              {
+                "powerType": "AC_3_PHASE",
+                "standard": "IEC_62196_T2",
+                "format": "CABLE",
+                "capabilities": null,
+                "maxVoltage": 400,
+                "maxAmperage": 32,
+                "maxElectricPower": 12800,
+                "tariffIds": [
+                  "0539786f6ac17cf40210c48c1732bbd1"
+                ],
+                "createdAt": "2025-08-11T12:40:12.654Z",
+                "modifiedAt": "2026-06-18T05:11:38.349Z"
+              }
+            ]
+          },
+          {
+            "id": "FI*911*E*PDC*FI1000061*0000001",
+            "capabilities": [
+              "CREDIT_CARD_PAYABLE",
+              "REMOTE_START_STOP_CAPABLE"
+            ],
+            "acceptedServiceProviders": null,
+            "floorLevel": null,
+            "geometry": null,
+            "physicalReference": "000001",
+            "directions": null,
+            "createdAt": "2025-08-11T12:40:12.474Z",
+            "modifiedAt": "2026-06-18T05:11:38.323Z",
+            "connectors": [
+              {
+                "powerType": "AC_3_PHASE",
+                "standard": "IEC_62196_T2",
+                "format": "CABLE",
+                "capabilities": null,
+                "maxVoltage": 400,
+                "maxAmperage": 32,
+                "maxElectricPower": 12800,
+                "tariffIds": [
+                  "0539786f6ac17cf40210c48c1732bbd1"
+                ],
+                "createdAt": "2025-08-11T12:40:12.654Z",
+                "modifiedAt": "2026-06-18T05:11:38.349Z"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          24.912359,
+          60.190815
+        ]
+      },
+      "properties": {
+        "id": "FI-HLN-638823878716277047",
+        "name": "Töölöntulli",
+        "parkingType": "PARKING_LOT",
+        "operator": {
+          "id": "FI*HLN",
+          "partyId": "HLN",
+          "countryCode": "FI",
+          "details": {
+            "name": "Helen Oy",
+            "website": "https://www.helen.fi/sahkoauton-lataus/sahkoautojen-julkinen-latausverkosto"
+          }
+        },
+        "address": {
+          "street": "Töölöntullinkatu 8",
+          "city": "Helsinki",
+          "countryCode": "FIN"
+        },
+        "createdAt": "2025-08-11T12:40:41.579Z",
+        "modifiedAt": "2026-06-18T10:33:15.291Z",
+        "evses": [
+          {
+            "id": "FI*HLN*E218692*02",
+            "capabilities": [
+              "REMOTE_START_STOP_CAPABLE",
+              "RFID_READER"
+            ],
+            "acceptedServiceProviders": null,
+            "floorLevel": "",
+            "geometry": null,
+            "physicalReference": "218693",
+            "directions": null,
+            "createdAt": "2025-08-11T12:40:41.603Z",
+            "modifiedAt": "2026-06-18T05:43:17.180Z",
+            "connectors": [
+              {
+                "powerType": "DC",
+                "standard": "IEC_62196_T2_COMBO",
+                "format": "CABLE",
+                "capabilities": null,
+                "maxVoltage": 1000,
+                "maxAmperage": 375,
+                "maxElectricPower": 300000,
+                "tariffIds": [
+                  "FIHLNTTRF639077936851599152"
+                ],
+                "createdAt": "2025-08-11T12:40:41.664Z",
+                "modifiedAt": "2026-06-18T05:43:20.840Z"
+              }
+            ]
+          },
+          {
+            "id": "FI*HLN*E218692*01",
+            "capabilities": [
+              "REMOTE_START_STOP_CAPABLE",
+              "RFID_READER"
+            ],
+            "acceptedServiceProviders": null,
+            "floorLevel": "",
+            "geometry": null,
+            "physicalReference": "218692",
+            "directions": null,
+            "createdAt": "2025-08-11T12:40:41.603Z",
+            "modifiedAt": "2026-06-18T05:43:17.180Z",
+            "connectors": [
+              {
+                "powerType": "DC",
+                "standard": "IEC_62196_T2_COMBO",
+                "format": "CABLE",
+                "capabilities": null,
+                "maxVoltage": 1000,
+                "maxAmperage": 375,
+                "maxElectricPower": 300000,
+                "tariffIds": [
+                  "FIHLNTTRF639077936851599152"
+                ],
+                "createdAt": "2025-08-11T12:40:41.664Z",
+                "modifiedAt": "2026-06-18T05:43:20.840Z"
+              }
+            ]
+          },
+          {
+            "id": "FI*HLN*E218692*04",
+            "capabilities": [
+              "REMOTE_START_STOP_CAPABLE",
+              "RFID_READER"
+            ],
+            "acceptedServiceProviders": null,
+            "floorLevel": "",
+            "geometry": null,
+            "physicalReference": "218695",
+            "directions": null,
+            "createdAt": "2025-08-11T12:40:41.603Z",
+            "modifiedAt": "2026-06-18T10:33:15.291Z",
+            "connectors": [
+              {
+                "powerType": "DC",
+                "standard": "IEC_62196_T2_COMBO",
+                "format": "CABLE",
+                "capabilities": null,
+                "maxVoltage": 1000,
+                "maxAmperage": 375,
+                "maxElectricPower": 300000,
+                "tariffIds": [
+                  "FIHLNTTRF639077936851599152"
+                ],
+                "createdAt": "2025-08-11T12:40:41.664Z",
+                "modifiedAt": "2026-06-18T05:43:20.840Z"
+              }
+            ]
+          },
+          {
+            "id": "FI*HLN*E218692*06",
+            "capabilities": [
+              "REMOTE_START_STOP_CAPABLE",
+              "RFID_READER"
+            ],
+            "acceptedServiceProviders": null,
+            "floorLevel": "",
+            "geometry": null,
+            "physicalReference": "218697",
+            "directions": null,
+            "createdAt": "2025-08-11T12:40:41.603Z",
+            "modifiedAt": "2026-06-18T05:43:17.180Z",
+            "connectors": [
+              {
+                "powerType": "DC",
+                "standard": "IEC_62196_T2_COMBO",
+                "format": "CABLE",
+                "capabilities": null,
+                "maxVoltage": 1000,
+                "maxAmperage": 375,
+                "maxElectricPower": 300000,
+                "tariffIds": [
+                  "FIHLNTTRF639077936851599152"
+                ],
+                "createdAt": "2025-08-11T12:40:41.664Z",
+                "modifiedAt": "2026-06-18T05:43:20.840Z"
+              }
+            ]
+          },
+          {
+            "id": "FI*HLN*E218692*03",
+            "capabilities": [
+              "REMOTE_START_STOP_CAPABLE",
+              "RFID_READER"
+            ],
+            "acceptedServiceProviders": null,
+            "floorLevel": "",
+            "geometry": null,
+            "physicalReference": "218694",
+            "directions": null,
+            "createdAt": "2025-08-11T12:40:41.603Z",
+            "modifiedAt": "2026-06-18T08:26:46.918Z",
+            "connectors": [
+              {
+                "powerType": "DC",
+                "standard": "IEC_62196_T2_COMBO",
+                "format": "CABLE",
+                "capabilities": null,
+                "maxVoltage": 1000,
+                "maxAmperage": 375,
+                "maxElectricPower": 300000,
+                "tariffIds": [
+                  "FIHLNTTRF639077936851599152"
+                ],
+                "createdAt": "2025-08-11T12:40:41.664Z",
+                "modifiedAt": "2026-06-18T05:43:20.840Z"
+              }
+            ]
+          },
+          {
+            "id": "FI*HLN*E218692*05",
+            "capabilities": [
+              "REMOTE_START_STOP_CAPABLE",
+              "RFID_READER"
+            ],
+            "acceptedServiceProviders": null,
+            "floorLevel": "",
+            "geometry": null,
+            "physicalReference": "218696",
+            "directions": null,
+            "createdAt": "2025-08-11T12:40:41.603Z",
+            "modifiedAt": "2026-06-18T06:05:40.924Z",
+            "connectors": [
+              {
+                "powerType": "DC",
+                "standard": "IEC_62196_T2_COMBO",
+                "format": "CABLE",
+                "capabilities": null,
+                "maxVoltage": 1000,
+                "maxAmperage": 375,
+                "maxElectricPower": 300000,
+                "tariffIds": [
+                  "FIHLNTTRF639077936851599152"
+                ],
+                "createdAt": "2025-08-11T12:40:41.664Z",
+                "modifiedAt": "2026-06-18T05:43:20.840Z"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.944657,
+          60.099303
+        ]
+      },
+      "properties": {
+        "id": "FI001L0APRZBZA",
+        "name": "Sittkoff",
+        "chargingWhenClosed": true,
+        "operator": {
+          "id": "FI*001",
+          "partyId": "001",
+          "countryCode": "FI",
+          "details": {
+            "name": "Liikennevirta"
+          }
+        },
+        "address": {
+          "street": "Österleden 165",
+          "city": "Mariehamn",
+          "postalCode": "22100",
+          "countryCode": "FIN"
+        },
+        "createdAt": "2025-08-11T12:41:13.716Z",
+        "modifiedAt": "2026-06-02T08:13:16.559Z",
+        "evses": [
+          {
+            "id": "FI*001*E26175",
+            "capabilities": [
+              "REMOTE_START_STOP_CAPABLE",
+              "RFID_READER",
+              "CREDIT_CARD_PAYABLE"
+            ],
+            "acceptedServiceProviders": null,
+            "floorLevel": null,
+            "geometry": null,
+            "physicalReference": "",
+            "directions": null,
+            "createdAt": "2025-08-11T12:41:13.859Z",
+            "modifiedAt": "2025-11-07T00:57:06.778Z",
+            "connectors": [
+              {
+                "powerType": "DC",
+                "standard": "CHADEMO",
+                "format": "CABLE",
+                "capabilities": null,
+                "maxVoltage": 500,
+                "maxAmperage": 40,
+                "maxElectricPower": 20000,
+                "tariffIds": [
+                  "FI001TWVZFXLFU2YJMVQHNK2IAJ6P9JF5QK9"
+                ],
+                "createdAt": "2025-08-11T12:41:14.141Z",
+                "modifiedAt": "2025-08-27T13:08:40.683Z"
+              },
+              {
+                "powerType": "DC",
+                "standard": "IEC_62196_T2_COMBO",
+                "format": "CABLE",
+                "capabilities": null,
+                "maxVoltage": 500,
+                "maxAmperage": 40,
+                "maxElectricPower": 20000,
+                "tariffIds": [
+                  "FI001TWVZFXLFU2YJMVQHNK2IAJ6P9JF5QK9"
+                ],
+                "createdAt": "2025-08-11T12:41:14.141Z",
+                "modifiedAt": "2025-08-27T13:08:40.683Z"
+              }
+            ]
+          },
+          {
+            "id": "FI*001*E26176",
+            "capabilities": [
+              "REMOTE_START_STOP_CAPABLE",
+              "RFID_READER",
+              "CREDIT_CARD_PAYABLE"
+            ],
+            "acceptedServiceProviders": null,
+            "floorLevel": null,
+            "geometry": null,
+            "physicalReference": "",
+            "directions": null,
+            "createdAt": "2025-08-11T12:41:13.859Z",
+            "modifiedAt": "2025-11-07T00:57:06.778Z",
+            "connectors": [
+              {
+                "powerType": "AC_3_PHASE",
+                "standard": "IEC_62196_T2",
+                "format": "SOCKET",
+                "capabilities": null,
+                "maxVoltage": 230,
+                "maxAmperage": 32,
+                "maxElectricPower": 7360,
+                "tariffIds": [
+                  "FI001TMIYYLHLMX8EK2ZPW9JJ2KUHYTMVCNL"
+                ],
+                "createdAt": "2025-08-11T12:41:14.141Z",
+                "modifiedAt": "2025-08-27T13:08:40.683Z"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          21.52398,
+          61.1339
+        ]
+      },
+      "properties": {
+        "id": "FI001L9OQWKM40",
+        "name": "Kairakatu",
+        "chargingWhenClosed": true,
+        "operator": {
+          "id": "FI*001",
+          "partyId": "001",
+          "countryCode": "FI",
+          "details": {
+            "name": "Liikennevirta"
+          }
+        },
+        "address": {
+          "street": "Kairakatu 4",
+          "city": "Rauma",
+          "postalCode": "UNKNOWN",
+          "countryCode": "FIN"
+        },
+        "createdAt": "2025-08-11T12:41:23.115Z",
+        "modifiedAt": "2026-06-18T06:33:17.059Z",
+        "evses": [
+          {
+            "id": "FI*001*E296961",
+            "capabilities": [
+              "REMOTE_START_STOP_CAPABLE",
+              "RFID_READER",
+              "CREDIT_CARD_PAYABLE"
+            ],
+            "acceptedServiceProviders": null,
+            "floorLevel": null,
+            "geometry": null,
+            "physicalReference": "",
+            "directions": null,
+            "createdAt": "2025-10-13T23:38:12.209Z",
+            "modifiedAt": "2026-06-18T06:33:17.059Z",
+            "connectors": [
+              {
+                "powerType": "DC",
+                "standard": "IEC_62196_T2_COMBO",
+                "format": "CABLE",
+                "capabilities": null,
+                "maxVoltage": 500,
+                "maxAmperage": 98,
+                "maxElectricPower": 49000,
+                "tariffIds": [
+                  "FI001TWVZFXLFU2YJMVQHNK2IAJ6P9JF5QK9"
+                ],
+                "createdAt": "2025-10-13T23:38:12.292Z",
+                "modifiedAt": "2025-10-14T02:01:32.293Z"
+              }
+            ]
+          },
+          {
+            "id": "FI*001*E296962",
+            "capabilities": [
+              "REMOTE_START_STOP_CAPABLE",
+              "RFID_READER",
+              "CREDIT_CARD_PAYABLE"
+            ],
+            "acceptedServiceProviders": null,
+            "floorLevel": null,
+            "geometry": null,
+            "physicalReference": "",
+            "directions": null,
+            "createdAt": "2025-10-13T23:38:12.209Z",
+            "modifiedAt": "2026-06-16T23:51:11.777Z",
+            "connectors": [
+              {
+                "powerType": "DC",
+                "standard": "IEC_62196_T2_COMBO",
+                "format": "CABLE",
+                "capabilities": null,
+                "maxVoltage": 500,
+                "maxAmperage": 98,
+                "maxElectricPower": 49000,
+                "tariffIds": [
+                  "FI001TWVZFXLFU2YJMVQHNK2IAJ6P9JF5QK9"
+                ],
+                "createdAt": "2025-10-13T23:38:12.292Z",
+                "modifiedAt": "2025-10-14T02:01:32.293Z"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          25.058823,
+          60.298791
+        ]
+      },
+      "properties": {
+        "id": "FI001LZDVW39EJ",
+        "name": "KoskelaS - ID01118",
+        "chargingWhenClosed": true,
+        "operator": {
+          "id": "FI*001",
+          "partyId": "001",
+          "countryCode": "FI",
+          "details": {
+            "name": "Liikennevirta"
+          }
+        },
+        "address": {
+          "street": "Tuiterinkuja 2",
+          "city": "Vantaa",
+          "postalCode": "01370",
+          "countryCode": "FIN"
+        },
+        "createdAt": "2026-01-28T09:48:49.283Z",
+        "modifiedAt": "2026-02-25T10:07:05.517Z",
+        "evses": [
+          {
+            "id": "FI*001*E114177",
+            "capabilities": [
+              "REMOTE_START_STOP_CAPABLE",
+              "RFID_READER",
+              "CREDIT_CARD_PAYABLE",
+              "RESERVABLE"
+            ],
+            "acceptedServiceProviders": null,
+            "floorLevel": null,
+            "geometry": null,
+            "physicalReference": "",
+            "directions": null,
+            "createdAt": "2026-01-28T09:48:49.299Z",
+            "modifiedAt": "2026-01-28T09:48:49.299Z",
+            "connectors": [
+              {
+                "powerType": "AC_3_PHASE",
+                "standard": "IEC_62196_T2",
+                "format": "SOCKET",
+                "capabilities": null,
+                "maxVoltage": 230,
+                "maxAmperage": 16,
+                "maxElectricPower": null,
+                "tariffIds": null,
+                "createdAt": "2026-01-28T09:48:49.360Z",
+                "modifiedAt": "2026-01-28T09:48:49.360Z"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

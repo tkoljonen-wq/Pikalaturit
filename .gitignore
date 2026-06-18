@@ -1,0 +1,14 @@
+# Iso täysi AFIR-snapshot — viiteaineisto, ei versionhallintaan (käytä *-sample.json testeissä)
+fixtures/statuses-all.json
+fixtures/locations-all*.json
+*.tmp.json
+
+# Riippuvuudet / build
+node_modules/
+dist/
+.env
+.env.local
+
+# Supabase
+.branches/
+.temp/

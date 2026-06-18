@@ -1,0 +1,32 @@
+name: Collector – metadata + siivous (päivittäin)
+
+# Synkronoi asema-/EVSE-/connector-metadatan ja siivoaa vanhat snapshotit.
+# Suunnitelma §11.1, §9.7.
+
+on:
+  schedule:
+    - cron: "15 3 * * *" # klo 03:15 UTC
+  workflow_dispatch: {}
+
+concurrency:
+  group: collector-metadata
+  cancel-in-progress: false
+
+jobs:
+  metadata:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Metadatasynkronointi
+        run: npm run collector -- metadata
+      - name: Säilytyssiivous
+        run: npm run collector -- cleanup

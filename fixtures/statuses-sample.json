@@ -1,0 +1,98 @@
+{
+  "modifiedAt": "2026-06-18T10:38:17.525Z",
+  "pagination": {
+    "limit": 18
+  },
+  "statuses": [
+    {
+      "evseId": "FI*911*E*PDC*FI1000244*0000001",
+      "modifiedAt": "2026-06-08T22:04:13.346Z",
+      "status": "OUTOFORDER"
+    },
+    {
+      "evseId": "FI*911*E*PDC*FI1000061*0000001",
+      "modifiedAt": "2026-06-15T17:15:51.536Z",
+      "status": "AVAILABLE"
+    },
+    {
+      "evseId": "FI*HLN*E218692*02",
+      "modifiedAt": "2026-06-17T22:58:52.719Z",
+      "status": "AVAILABLE"
+    },
+    {
+      "evseId": "FI*HLN*E218692*01",
+      "modifiedAt": "2026-06-17T20:29:18.092Z",
+      "status": "AVAILABLE"
+    },
+    {
+      "evseId": "FI*HLN*E218692*04",
+      "modifiedAt": "2026-06-18T10:33:15.291Z",
+      "status": "AVAILABLE"
+    },
+    {
+      "evseId": "FI*HLN*E218692*06",
+      "modifiedAt": "2026-06-17T21:55:03.704Z",
+      "status": "AVAILABLE"
+    },
+    {
+      "evseId": "FI*HLN*E218692*03",
+      "modifiedAt": "2026-06-18T08:26:46.918Z",
+      "status": "AVAILABLE"
+    },
+    {
+      "evseId": "FI*HLN*E218692*05",
+      "modifiedAt": "2026-06-18T06:05:40.924Z",
+      "status": "AVAILABLE"
+    },
+    {
+      "evseId": "FI*001*E26175",
+      "modifiedAt": "2025-11-06T13:34:29.925Z",
+      "status": "OUTOFORDER"
+    },
+    {
+      "evseId": "FI*001*E26176",
+      "modifiedAt": "2025-11-06T13:34:29.925Z",
+      "status": "OUTOFORDER"
+    },
+    {
+      "evseId": "FI*001*E296961",
+      "modifiedAt": "2026-06-18T06:33:17.059Z",
+      "status": "AVAILABLE"
+    },
+    {
+      "evseId": "FI*001*E296962",
+      "modifiedAt": "2026-06-16T09:31:58.375Z",
+      "status": "AVAILABLE"
+    },
+    {
+      "evseId": "FI*001*E114177",
+      "modifiedAt": "2026-01-28T09:48:49.299Z",
+      "status": "AVAILABLE"
+    },
+    {
+      "evseId": "FI*001*E21235",
+      "modifiedAt": "2026-06-18T03:55:25.373Z",
+      "status": "CHARGING"
+    },
+    {
+      "evseId": "FI*IOY*E309301",
+      "modifiedAt": "2026-06-18T08:33:25.035Z",
+      "status": "UNKNOWN"
+    },
+    {
+      "evseId": "FI*IOY*E309004",
+      "modifiedAt": "2026-06-18T10:21:07.840Z",
+      "status": "BLOCKED"
+    },
+    {
+      "evseId": "FI*IOY*E309001",
+      "modifiedAt": "2026-06-18T05:00:24.237Z",
+      "status": "INOPERATIVE"
+    },
+    {
+      "evseId": "FI*EPA*ERED25035",
+      "modifiedAt": "2026-06-15T18:49:27.601Z",
+      "status": "RESERVED"
+    }
+  ]
+}

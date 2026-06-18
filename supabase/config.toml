@@ -1,0 +1,11 @@
+# Supabase-projektin paikalliskonfiguraatio (supabase CLI).
+# Linkitä oikeaan projektiin: supabase link --project-ref <ref>
+project_id = "afir-pikalaturit"
+
+[db]
+major_version = 15
+
+[auth]
+# Vain oma tili sallittu (suunnitelma §14). Estä avoin rekisteröityminen ja
+# salli kirjautuminen vain sallitulla sähköpostilla / Google-tilillä.
+enable_signup = false
