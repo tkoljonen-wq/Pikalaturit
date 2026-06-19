@@ -1,11 +1,14 @@
-name: Collector – metadata + siivous (päivittäin)
+name: Collector – metadata (päivittäin)
 
-# Synkronoi asema-/EVSE-/connector-metadatan ja siivoaa vanhat snapshotit.
-# Suunnitelma §11.1, §9.7.
+# Synkronoi asema-/EVSE-/connector-metadatan AFIR locations/all -syötteestä.
+# Suunnitelma §11.1.
+#
+# Laukaisu: Supabasen pg_cron käynnistää tämän workflow_dispatchilla klo 03:15 UTC
+# (migraatio 20260619080000_cron_metadata_cleanup.sql). GitHubin oma `schedule` ei
+# laukennut luotettavasti, joten siitä on luovuttu. Säilytyssiivous (cleanup) ajetaan
+# nyt erikseen pg_cron-SQL:llä, ei enää tässä workflow'ssa.
 
 on:
-  schedule:
-    - cron: "15 3 * * *" # klo 03:15 UTC
   workflow_dispatch: {}
 
 concurrency:
@@ -28,5 +31,3 @@ jobs:
       - run: npm ci
       - name: Metadatasynkronointi
         run: npm run collector -- metadata
-      - name: Säilytyssiivous
-        run: npm run collector -- cleanup
