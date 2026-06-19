@@ -17,6 +17,12 @@ const FRESH_LABEL = {
   old: "Data vanhaa",
 } as const;
 
+// GitHub-dispatch-tokenin (metadata-cron) vanheneminen. Muistutus näkyy etusivulla
+// 14 vrk ennen tätä. Päivitysohje: muistitiedosto pikalaturit-cron.md (uusi PAT →
+// .env GITHUB_DISPATCH_TOKEN → npm run setup-metadata-cron).
+const TOKEN_EXPIRY = new Date("2027-06-18T21:00:00Z");
+const TOKEN_WARN_MS = 14 * 24 * 60 * 60 * 1000;
+
 export function Home() {
   const [snap, setSnap] = useState<NationalSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
@@ -73,8 +79,32 @@ export function Home() {
   const age = ageSecondsFrom(snap.data_source_updated_at ?? snap.measured_at);
   const fresh = freshness(age);
 
+  // Tokenin vanhenemismuistutus: näkyy 14 vrk ennen ja vanhenemisen jälkeen.
+  const msToExpiry = TOKEN_EXPIRY.getTime() - Date.now();
+  const showTokenWarning = msToExpiry <= TOKEN_WARN_MS;
+  const tokenExpired = msToExpiry <= 0;
+  const daysToExpiry = Math.max(0, Math.ceil(msToExpiry / (24 * 60 * 60 * 1000)));
+
   return (
     <>
+      {showTokenWarning && (
+        <div
+          className="card"
+          style={{ borderColor: "var(--yellow)", fontSize: 13 }}
+        >
+          <div style={{ fontWeight: 600, color: "var(--yellow)", marginBottom: 6 }}>
+            ⚠️ GitHub-token {tokenExpired ? "on vanhentunut" : `vanhenee ${daysToExpiry} pv:n päästä`}
+          </div>
+          <div className="muted">
+            Metadata-cronin GitHub-token vanhenee 18.6.2027. Kun se vanhenee, asemien
+            metadata ei enää päivity (status ja muut jatkuvat). Päivitysohje löytyy
+            tiedostoista: muistitiedosto <strong>pikalaturit-cron.md</strong> — luo uusi
+            fine-grained PAT, päivitä <code>.env</code>:n GITHUB_DISPATCH_TOKEN ja aja{" "}
+            <code>npm run setup-metadata-cron</code>.
+          </div>
+        </div>
+      )}
+
       <div className="card hero">
         <div className="big">{formatNumber(snap.fast_charging)}</div>
         <div className="label">pikalaturilla latauksessa juuri nyt</div>
