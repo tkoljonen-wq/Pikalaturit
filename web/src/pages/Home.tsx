@@ -39,7 +39,7 @@ export function Home() {
 
   useEffect(() => {
     load();
-    const t = setInterval(load, 60_000); // päivitä minuutin välein kun auki
+    const t = setInterval(load, 30_000); // päivitä 30 s välein kun auki
     return () => clearInterval(t);
   }, []);
 

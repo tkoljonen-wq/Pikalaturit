@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabase";
 import { LineChart, type ChartPoint } from "../components/LineChart";
 import {
+  formatDateLabel,
   formatHourLabel,
   formatNumber,
   formatPercent,
@@ -15,12 +16,13 @@ type SnapRow = {
   occupancy_percent: number | null;
 };
 
-type RangeKey = "24h" | "7d";
+type RangeKey = "24h" | "7d" | "custom";
 type MetricKey = "charging" | "available" | "occupancy";
 
-const RANGES: { key: RangeKey; label: string; hours: number }[] = [
+const RANGES: { key: RangeKey; label: string; hours: number | null }[] = [
   { key: "24h", label: "24 h", hours: 24 },
   { key: "7d", label: "7 vrk", hours: 24 * 7 },
+  { key: "custom", label: "Oma", hours: null },
 ];
 
 const METRICS: {
@@ -60,19 +62,39 @@ const METRICS: {
 const PAGE = 1000;
 const MAX_POINTS = 180;
 
+/** ISO-aikaväli päivämääräsyötteistä: alku 00:00 → loppu seuraavan päivän 00:00 (paikallisaika). */
+function dayRangeISO(fromDate: string, toDate: string): { sinceISO: string; untilISO: string } {
+  const since = new Date(`${fromDate}T00:00:00`);
+  const until = new Date(`${toDate}T00:00:00`);
+  until.setDate(until.getDate() + 1); // koko loppupäivä mukaan
+  return { sinceISO: since.toISOString(), untilISO: until.toISOString() };
+}
+
+/** YYYY-MM-DD tämänhetkisestä paikallisajasta (oletusarvot päivämääräsyötteille). */
+function isoDate(d: Date): string {
+  const tz = d.getTimezoneOffset() * 60000;
+  return new Date(d.getTime() - tz).toISOString().slice(0, 10);
+}
+
 /** Hakee snapshotit sivuttaen (PostgREST palauttaa kerralla enintään ~1000 riviä). */
-async function fetchSnapshots(sinceISO: string): Promise<SnapRow[]> {
-  const all: SnapRow[] = [];
-  for (let from = 0; from <= 20000; from += PAGE) {
-    const { data, error } = await supabase
+async function fetchSnapshots<T extends Record<string, unknown>>(
+  columns: string,
+  sinceISO: string,
+  untilISO: string | null
+): Promise<T[]> {
+  const all: T[] = [];
+  for (let from = 0; from <= 100000; from += PAGE) {
+    let q = supabase
       .from("national_snapshots")
-      .select("measured_at, fast_charging, fast_available, occupancy_percent")
+      .select(columns)
       .gte("measured_at", sinceISO)
       .order("measured_at", { ascending: true })
       .range(from, from + PAGE - 1);
+    if (untilISO) q = q.lt("measured_at", untilISO);
+    const { data, error } = await q;
     if (error) throw error;
     if (!data || data.length === 0) break;
-    all.push(...(data as SnapRow[]));
+    all.push(...(data as unknown as T[]));
     if (data.length < PAGE) break;
   }
   return all;
@@ -109,31 +131,59 @@ export function Kuvaajat() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  const metric = METRICS.find((m) => m.key === metricKey)!;
+  // Oman aikavälin päivämäärät (oletus: viimeiset 7 vrk).
+  const [from, setFrom] = useState(() => isoDate(new Date(Date.now() - 6 * 86400_000)));
+  const [to, setTo] = useState(() => isoDate(new Date()));
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError(false);
-    const hours = RANGES.find((r) => r.key === range)!.hours;
-    const sinceISO = new Date(Date.now() - hours * 3600_000).toISOString();
-    fetchSnapshots(sinceISO)
-      .then((data) => {
-        if (!cancelled) {
-          setRows(data);
-          setLoading(false);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
+  const metric = METRICS.find((m) => m.key === metricKey)!;
+  const customValid = range !== "custom" || from <= to;
+
+  // silent = automaattipäivitys: ei näytä "Ladataan…"-tilaa, vaan vaihtaa
+  // datan paikallaan kun se on valmis.
+  const loadData = useCallback(
+    async (silent: boolean) => {
+      if (range === "custom" && from > to) {
+        setError(true);
+        setLoading(false);
+        return;
+      }
+      if (!silent) {
+        setLoading(true);
+        setError(false);
+      }
+      let sinceISO: string;
+      let untilISO: string | null;
+      if (range === "custom") {
+        ({ sinceISO, untilISO } = dayRangeISO(from, to));
+      } else {
+        const hours = RANGES.find((r) => r.key === range)!.hours!;
+        sinceISO = new Date(Date.now() - hours * 3600_000).toISOString();
+        untilISO = null;
+      }
+      try {
+        const data = await fetchSnapshots<SnapRow>(
+          "measured_at, fast_charging, fast_available, occupancy_percent",
+          sinceISO,
+          untilISO
+        );
+        setRows(data);
+        setError(false);
+        setLoading(false);
+      } catch {
+        if (!silent) {
           setError(true);
           setLoading(false);
         }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [range]);
+      }
+    },
+    [range, from, to]
+  );
+
+  useEffect(() => {
+    loadData(false);
+    const t = setInterval(() => loadData(true), 30_000); // päivitä 30 s välein
+    return () => clearInterval(t);
+  }, [loadData]);
 
   const points = useMemo(
     () => downsample(rows, metric.valueOf),
@@ -153,7 +203,20 @@ export function Kuvaajat() {
     };
   }, [rows, metric]);
 
-  const timeLabel = range === "24h" ? formatHourLabel : formatWeekdayLabel;
+  // Akselin aikaleima: lyhyt aikaväli → tunnit, 7 vrk → viikonpäivät, muuten päivämäärä.
+  const spanHours = useMemo(() => {
+    if (range === "24h") return 24;
+    if (range === "7d") return 24 * 7;
+    if (!customValid) return 24;
+    return (Date.parse(`${to}T00:00:00`) - Date.parse(`${from}T00:00:00`)) / 3600_000 + 24;
+  }, [range, from, to, customValid]);
+
+  const timeLabel =
+    spanHours <= 36
+      ? formatHourLabel
+      : spanHours <= 24 * 8
+        ? formatWeekdayLabel
+        : formatDateLabel;
 
   return (
     <>
@@ -168,6 +231,30 @@ export function Kuvaajat() {
           </button>
         ))}
       </div>
+
+      {range === "custom" && (
+        <div className="card date-range">
+          <label>
+            Alkaen
+            <input
+              type="date"
+              value={from}
+              max={to}
+              onChange={(e) => setFrom(e.target.value)}
+            />
+          </label>
+          <label>
+            Päättyen
+            <input
+              type="date"
+              value={to}
+              min={from}
+              max={isoDate(new Date())}
+              onChange={(e) => setTo(e.target.value)}
+            />
+          </label>
+        </div>
+      )}
 
       <div className="segmented" role="tablist" aria-label="Mittari">
         {METRICS.map((m) => (
@@ -185,7 +272,11 @@ export function Kuvaajat() {
         {loading ? (
           <div className="center-msg">Ladataan…</div>
         ) : error ? (
-          <div className="center-msg">Datan haku epäonnistui.</div>
+          <div className="center-msg">
+            {customValid ? "Datan haku epäonnistui." : "Tarkista aikaväli."}
+          </div>
+        ) : points.length === 0 ? (
+          <div className="center-msg">Ei dataa valitulta aikaväliltä.</div>
         ) : (
           <LineChart
             points={points}
@@ -219,10 +310,161 @@ export function Kuvaajat() {
         </div>
       )}
 
+      <CsvExport />
+
       <div className="source">
         Lähde: Fintraffic / Digitraffic, CC BY 4.0. Dataa on aggregoitu ja käsitelty
         sovelluksessa.
       </div>
     </>
+  );
+}
+
+// ── CSV-vienti ──────────────────────────────────────────────────────────────
+
+type ExportField = {
+  key: string;
+  label: string;
+  // numeric: desimaalipilkku Suomen Exceliä varten; date: ISO sellaisenaan.
+  kind: "date" | "int" | "num";
+};
+
+// measured_at on aina mukana ensimmäisenä sarakkeena.
+const EXPORT_FIELDS: ExportField[] = [
+  { key: "fast_total", label: "Pikalatureita yhteensä", kind: "int" },
+  { key: "fast_available", label: "Vapaana", kind: "int" },
+  { key: "fast_charging", label: "Latauksessa", kind: "int" },
+  { key: "fast_reserved", label: "Varattu", kind: "int" },
+  { key: "fast_blocked", label: "Estetty", kind: "int" },
+  { key: "fast_out_of_order", label: "Epäkunnossa", kind: "int" },
+  { key: "fast_unknown", label: "Tuntematon", kind: "int" },
+  { key: "fast_other", label: "Muu tila", kind: "int" },
+  { key: "occupancy_percent", label: "Käyttöaste-%", kind: "num" },
+  { key: "unavailable_percent", label: "Ei vapaana -%", kind: "num" },
+  { key: "data_source_updated_at", label: "Lähteen aikaleima", kind: "date" },
+];
+
+const DEFAULT_FIELDS = new Set([
+  "fast_total",
+  "fast_available",
+  "fast_charging",
+  "occupancy_percent",
+]);
+
+/** CSV-solu: lainausmerkitys + desimaalipilkku. Erottimena ';' (Suomen Excel). */
+function csvCell(value: unknown, kind: ExportField["kind"]): string {
+  if (value == null) return "";
+  if (kind === "num") return String(value).replace(".", ",");
+  const s = String(value);
+  return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function CsvExport() {
+  const [from, setFrom] = useState(() => isoDate(new Date(Date.now() - 6 * 86400_000)));
+  const [to, setTo] = useState(() => isoDate(new Date()));
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(DEFAULT_FIELDS));
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  function toggle(key: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  async function exportCsv() {
+    if (from > to) {
+      setMsg("Tarkista aikaväli.");
+      return;
+    }
+    setBusy(true);
+    setMsg(null);
+    try {
+      const fields = EXPORT_FIELDS.filter((f) => selected.has(f.key));
+      const cols = ["measured_at", ...fields.map((f) => f.key)].join(", ");
+      const { sinceISO, untilISO } = dayRangeISO(from, to);
+      const data = await fetchSnapshots<Record<string, unknown>>(cols, sinceISO, untilISO);
+      if (data.length === 0) {
+        setMsg("Ei dataa valitulta aikaväliltä.");
+        return;
+      }
+      const header = ["Aikaleima", ...fields.map((f) => f.label)].join(";");
+      const lines = data.map((r) =>
+        [
+          csvCell(r.measured_at, "date"),
+          ...fields.map((f) => csvCell(r[f.key], f.kind)),
+        ].join(";")
+      );
+      // BOM, jotta Excel tunnistaa UTF-8:n (ä/ö).
+      const csv = "﻿" + [header, ...lines].join("\r\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `pikalaturit_${from}_${to}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setMsg(`Ladattu ${data.length} riviä.`);
+    } catch {
+      setMsg("Vienti epäonnistui.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card">
+      <div className="section-title">Vie CSV</div>
+      <div className="date-range" style={{ padding: 0, border: "none", margin: 0 }}>
+        <label>
+          Alkaen
+          <input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} />
+        </label>
+        <label>
+          Päättyen
+          <input
+            type="date"
+            value={to}
+            min={from}
+            max={isoDate(new Date())}
+            onChange={(e) => setTo(e.target.value)}
+          />
+        </label>
+      </div>
+
+      <div className="muted" style={{ marginTop: 12, marginBottom: 6 }}>
+        Sarakkeet (aikaleima aina mukana)
+      </div>
+      <div className="field-grid">
+        {EXPORT_FIELDS.map((f) => (
+          <label key={f.key}>
+            <input
+              type="checkbox"
+              checked={selected.has(f.key)}
+              onChange={() => toggle(f.key)}
+            />
+            {f.label}
+          </label>
+        ))}
+      </div>
+
+      <button
+        className="sheet-btn"
+        onClick={exportCsv}
+        disabled={busy || selected.size === 0}
+      >
+        {busy ? "Viedään…" : "⬇ Lataa CSV"}
+      </button>
+      {msg && (
+        <div className="muted" style={{ marginTop: 10 }}>
+          {msg}
+        </div>
+      )}
+    </div>
   );
 }

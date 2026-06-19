@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "../supabase";
 import type { LatestStationStatus } from "../types";
 import { formatAge, formatNumber, formatPercent, formatTime, freshness } from "../lib/format";
@@ -64,7 +64,16 @@ export function Seuranta() {
   const [liveAt, setLiveAt] = useState<string | null>(null);
   const [liveErr, setLiveErr] = useState(false);
 
+  // Raahaus-järjestäminen (pointer-eventit → toimii myös kosketuksella).
+  const [dragId, setDragId] = useState<number | null>(null);
+  const dragIndexRef = useRef<number | null>(null);
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const itemsRef = useRef<WatchRow[]>([]);
+  itemsRef.current = items;
+
   const load = useCallback(async () => {
+    // Älä ylikirjoita paikallista järjestystä kesken raahauksen.
+    if (dragIndexRef.current !== null) return;
     const { data: wl, error: wlErr } = await supabase
       .from("watchlist")
       .select(
@@ -102,6 +111,8 @@ export function Seuranta() {
 
   useEffect(() => {
     load();
+    const t = setInterval(load, 30_000); // päivitä 30 s välein kun auki
+    return () => clearInterval(t);
   }, [load]);
 
   // Asemahaku (debounce). Vain pikalaturiasemat.
@@ -170,6 +181,67 @@ export function Seuranta() {
     } finally {
       setRefreshing(false);
     }
+  }
+
+  // Tallentaa nykyisen järjestyksen sort_order-kenttään (0..n-1).
+  async function persistOrder() {
+    const rows = itemsRef.current;
+    await Promise.all(
+      rows.map((r, i) =>
+        supabase.from("watchlist").update({ sort_order: i }).eq("id", r.id)
+      )
+    ).catch(() => {
+      /* tallennus epäonnistui — seuraava lataus palauttaa DB-järjestyksen */
+    });
+  }
+
+  /** Kortin pystykeskikohtien perusteella: mihin indeksiin raahattava kuuluu. */
+  function indexFromY(y: number): number {
+    const els = cardRefs.current;
+    for (let i = 0; i < els.length; i++) {
+      const el = els[i];
+      if (!el) continue;
+      const r = el.getBoundingClientRect();
+      if (y < r.top + r.height / 2) return i;
+    }
+    return Math.max(0, els.length - 1);
+  }
+
+  function onDragStart(e: React.PointerEvent, index: number) {
+    const it = items[index];
+    if (!it) return;
+    e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    dragIndexRef.current = index;
+    setDragId(it.id);
+  }
+
+  function onDragMove(e: React.PointerEvent) {
+    const from = dragIndexRef.current;
+    if (from === null) return;
+    e.preventDefault();
+    const target = indexFromY(e.clientY);
+    if (target === from) return;
+    setItems((prev) => {
+      const arr = [...prev];
+      const [moved] = arr.splice(from, 1);
+      if (!moved) return prev;
+      arr.splice(target, 0, moved);
+      return arr;
+    });
+    dragIndexRef.current = target;
+  }
+
+  function onDragEnd(e: React.PointerEvent) {
+    if (dragIndexRef.current === null) return;
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {
+      /* capture jo vapautettu */
+    }
+    dragIndexRef.current = null;
+    setDragId(null);
+    void persistOrder();
   }
 
   const watched = new Set(items.map((i) => i.location_id));
@@ -241,16 +313,35 @@ export function Seuranta() {
           <p className="muted">Hae asema yltä ja lisää se seurantaan.</p>
         </div>
       ) : (
-        items.map((it) => {
+        items.map((it, idx) => {
           const loc = it.locations;
           const title = it.display_name ?? loc?.name ?? it.location_id;
           return (
-            <div key={it.id} className="card station-card">
+            <div
+              key={it.id}
+              ref={(el) => {
+                cardRefs.current[idx] = el;
+              }}
+              className={`card station-card${dragId === it.id ? " dragging" : ""}`}
+            >
               <div className="row-between">
-                <div className="station-title">
-                  <div className="st-name">{title}</div>
-                  <div className="muted">
-                    {[loc?.city, loc?.operator_name].filter(Boolean).join(" · ") || "–"}
+                <div className="st-left">
+                  <span
+                    className="drag-handle"
+                    aria-label="Raahaa järjestääksesi"
+                    role="button"
+                    onPointerDown={(e) => onDragStart(e, idx)}
+                    onPointerMove={onDragMove}
+                    onPointerUp={onDragEnd}
+                    onPointerCancel={onDragEnd}
+                  >
+                    ⠿
+                  </span>
+                  <div className="station-title">
+                    <div className="st-name">{title}</div>
+                    <div className="muted">
+                      {[loc?.city, loc?.operator_name].filter(Boolean).join(" · ") || "–"}
+                    </div>
                   </div>
                 </div>
                 <button

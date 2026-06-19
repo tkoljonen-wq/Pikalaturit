@@ -67,3 +67,12 @@ export function formatWeekdayLabel(t: number): string {
     timeZone: TZ,
   });
 }
+
+/** Päivämäärä lyhyt "1.6." (kuvaajan oma, monen päivän aikaväli). */
+export function formatDateLabel(t: number): string {
+  return new Date(t).toLocaleDateString("fi-FI", {
+    day: "numeric",
+    month: "numeric",
+    timeZone: TZ,
+  });
+}
