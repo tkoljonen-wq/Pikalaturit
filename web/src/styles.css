@@ -429,19 +429,27 @@ button.link {
 }
 
 /* Seurannan raahauskahva */
-.st-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.st-left { display: flex; align-items: center; gap: 4px; min-width: 0; }
 .drag-handle {
   flex: none;
-  font-size: 20px;
+  /* Iso kosketusalue (≥44 px) → sormi osuu varmasti. Negatiiviset marginaalit
+     pitävät kortin ulkoasun ennallaan vaikka osuma-alue on suuri. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin: -10px 0 -10px -12px;
+  font-size: 22px;
   line-height: 1;
   color: var(--text-dim);
   cursor: grab;
   touch-action: none; /* estä sivun vieritys raahatessa */
   user-select: none;
   -webkit-user-select: none;
-  padding: 4px 2px;
+  -webkit-touch-callout: none; /* estä Androidin pitkän painalluksen valikko */
 }
-.drag-handle:active { cursor: grabbing; }
+.drag-handle:active { cursor: grabbing; color: var(--accent); }
 .station-card.dragging {
   opacity: 0.9;
   border-color: var(--accent);
