@@ -35,7 +35,7 @@ export function formatAge(seconds: number | null): string {
 export type Freshness = "ok" | "stale" | "old";
 
 /**
- * Datan tuoreusluokka. Kynnykset mitoitettu 10 min keruuvälille (cron */10):
+ * Datan tuoreusluokka. Kynnykset mitoitettu 10 min keruuvälille (cron-väli 10 min):
  * OK alle 25 min (≈2 ajoa), vanhenemassa 25–60 min, vanhaa yli 60 min.
  */
 export function freshness(ageSeconds: number | null): Freshness {
