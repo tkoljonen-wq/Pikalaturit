@@ -79,7 +79,7 @@ export function Asetukset() {
           </a>
         </div>
         <p className="muted" style={{ marginTop: 12, lineHeight: 1.5 }}>
-          Tiedot päivittyvät noin 5–15 minuutin välein. Lukemat eivät ole
+          Tiedot päivittyvät noin 10–20 minuutin välein. Lukemat eivät ole
           reaaliaikaisia. Tuoreusmerkintä kertoo kunkin tiedon iän.
         </p>
         <p className="muted" style={{ marginTop: 10, lineHeight: 1.5 }}>

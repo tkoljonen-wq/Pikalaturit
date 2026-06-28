@@ -35,14 +35,13 @@ export function formatAge(seconds: number | null): string {
 export type Freshness = "ok" | "stale" | "old";
 
 /**
- * Datan tuoreusluokka. Kynnykset löysätty GitHub Actions -cronin todellisuuteen
- * (ajaa ~5–15 min välein, ei tarkasti 5 min): OK alle 15 min, vanhenemassa
- * 15–40 min, vanhaa yli 40 min. (Suunnitelman §15 alkuperäiset olivat 10/30.)
+ * Datan tuoreusluokka. Kynnykset mitoitettu 10 min keruuvälille (cron */10):
+ * OK alle 25 min (≈2 ajoa), vanhenemassa 25–60 min, vanhaa yli 60 min.
  */
 export function freshness(ageSeconds: number | null): Freshness {
   if (ageSeconds == null) return "old";
-  if (ageSeconds > 40 * 60) return "old";
-  if (ageSeconds > 15 * 60) return "stale";
+  if (ageSeconds > 60 * 60) return "old";
+  if (ageSeconds > 25 * 60) return "stale";
   return "ok";
 }
 
