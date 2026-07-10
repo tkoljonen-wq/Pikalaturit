@@ -76,21 +76,35 @@ function isoDate(d: Date): string {
   return new Date(d.getTime() - tz).toISOString().slice(0, 10);
 }
 
+/** Valittu aikaväli ISO-muodossa (custom: koko päivät paikallisajassa). */
+function rangeISO(
+  range: RangeKey,
+  from: string,
+  to: string
+): { sinceISO: string; untilISO: string | null } {
+  if (range === "custom") return dayRangeISO(from, to);
+  const hours = RANGES.find((r) => r.key === range)!.hours!;
+  return { sinceISO: new Date(Date.now() - hours * 3600_000).toISOString(), untilISO: null };
+}
+
 /** Hakee snapshotit sivuttaen (PostgREST palauttaa kerralla enintään ~1000 riviä). */
 async function fetchSnapshots<T extends Record<string, unknown>>(
+  table: "national_snapshots" | "watchlist_station_snapshots",
   columns: string,
   sinceISO: string,
-  untilISO: string | null
+  untilISO: string | null,
+  locationId?: string
 ): Promise<T[]> {
   const all: T[] = [];
   for (let from = 0; from <= 100000; from += PAGE) {
     let q = supabase
-      .from("national_snapshots")
+      .from(table)
       .select(columns)
       .gte("measured_at", sinceISO)
       .order("measured_at", { ascending: true })
       .range(from, from + PAGE - 1);
     if (untilISO) q = q.lt("measured_at", untilISO);
+    if (locationId) q = q.eq("location_id", locationId);
     const { data, error } = await q;
     if (error) throw error;
     if (!data || data.length === 0) break;
@@ -98,6 +112,18 @@ async function fetchSnapshots<T extends Record<string, unknown>>(
     if (data.length < PAGE) break;
   }
   return all;
+}
+
+/** Nyt/keskiarvo/min/max valitulle mittarille. */
+function computeStats(rows: SnapRow[], valueOf: (r: SnapRow) => number | null) {
+  const vals = rows.map(valueOf).filter((x): x is number => x != null);
+  if (!vals.length) return null;
+  return {
+    now: vals[vals.length - 1]!,
+    min: Math.min(...vals),
+    max: Math.max(...vals),
+    avg: vals.reduce((a, b) => a + b, 0) / vals.length,
+  };
 }
 
 /** Tiivistää rivit ~MAX_POINTS pisteeseen keskiarvoistamalla (kevyt SVG-piirto). */
@@ -151,17 +177,10 @@ export function Kuvaajat() {
         setLoading(true);
         setError(false);
       }
-      let sinceISO: string;
-      let untilISO: string | null;
-      if (range === "custom") {
-        ({ sinceISO, untilISO } = dayRangeISO(from, to));
-      } else {
-        const hours = RANGES.find((r) => r.key === range)!.hours!;
-        sinceISO = new Date(Date.now() - hours * 3600_000).toISOString();
-        untilISO = null;
-      }
+      const { sinceISO, untilISO } = rangeISO(range, from, to);
       try {
         const data = await fetchSnapshots<SnapRow>(
+          "national_snapshots",
           "measured_at, fast_charging, fast_available, occupancy_percent",
           sinceISO,
           untilISO
@@ -190,18 +209,7 @@ export function Kuvaajat() {
     [rows, metric]
   );
 
-  const stats = useMemo(() => {
-    const vals = rows
-      .map(metric.valueOf)
-      .filter((x): x is number => x != null);
-    if (!vals.length) return null;
-    return {
-      now: vals[vals.length - 1]!,
-      min: Math.min(...vals),
-      max: Math.max(...vals),
-      avg: vals.reduce((a, b) => a + b, 0) / vals.length,
-    };
-  }, [rows, metric]);
+  const stats = useMemo(() => computeStats(rows, metric.valueOf), [rows, metric]);
 
   // Akselin aikaleima: lyhyt aikaväli → tunnit, 7 vrk → viikonpäivät, muuten päivämäärä.
   const spanHours = useMemo(() => {
@@ -310,12 +318,191 @@ export function Kuvaajat() {
         </div>
       )}
 
+      <StationChart
+        range={range}
+        from={from}
+        to={to}
+        rangeValid={customValid}
+        metric={metric}
+        timeLabel={timeLabel}
+      />
+
       <CsvExport />
 
       <div className="source">
         Lähde: Fintraffic / Digitraffic, CC BY 4.0. Dataa on aggregoitu ja käsitelty
         sovelluksessa.
       </div>
+    </>
+  );
+}
+
+// ── Seurattujen asemien käyttöaste ──────────────────────────────────────────
+// Data: watchlist_station_snapshots — Edge Function kerää sitä automaattisesti
+// kaikista watchlist-asemista 10 min välein (säilytys 180 vrk). Historia alkaa
+// kertyä siitä hetkestä kun asema lisätään seurantaan.
+
+type WatchStation = { location_id: string; label: string };
+
+function StationChart({
+  range,
+  from,
+  to,
+  rangeValid,
+  metric,
+  timeLabel,
+}: {
+  range: RangeKey;
+  from: string;
+  to: string;
+  rangeValid: boolean;
+  metric: (typeof METRICS)[number];
+  timeLabel: (t: number) => string;
+}) {
+  const [stations, setStations] = useState<WatchStation[] | null>(null);
+  const [selected, setSelected] = useState<string>("");
+  const [rows, setRows] = useState<SnapRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  // Seurattavat asemat valikkoon (sama järjestys kuin Seuranta-sivulla).
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("watchlist")
+        .select("location_id, display_name, locations(name, city)")
+        .order("sort_order", { ascending: true, nullsFirst: false })
+        .order("created_at", { ascending: true });
+      const list: WatchStation[] = (data ?? []).map((r) => {
+        // Supabase upottaa to-one-suhteen objektina (tyypitys voi olla taulukko).
+        const loc = Array.isArray(r.locations) ? r.locations[0] ?? null : r.locations;
+        const name = r.display_name ?? loc?.name ?? r.location_id;
+        return {
+          location_id: r.location_id,
+          label: loc?.city ? `${name} · ${loc.city}` : name,
+        };
+      });
+      setStations(list);
+      setSelected((prev) =>
+        list.some((s) => s.location_id === prev) ? prev : list[0]?.location_id ?? ""
+      );
+    })();
+  }, []);
+
+  const loadData = useCallback(
+    async (silent: boolean) => {
+      if (!selected || !rangeValid) return;
+      if (!silent) {
+        setLoading(true);
+        setError(false);
+      }
+      const { sinceISO, untilISO } = rangeISO(range, from, to);
+      try {
+        const data = await fetchSnapshots<SnapRow>(
+          "watchlist_station_snapshots",
+          "measured_at, fast_charging, fast_available, occupancy_percent",
+          sinceISO,
+          untilISO,
+          selected
+        );
+        setRows(data);
+        setError(false);
+        setLoading(false);
+      } catch {
+        if (!silent) {
+          setError(true);
+          setLoading(false);
+        }
+      }
+    },
+    [selected, range, from, to, rangeValid]
+  );
+
+  useEffect(() => {
+    loadData(false);
+    const t = setInterval(() => loadData(true), 30_000); // päivitä 30 s välein
+    return () => clearInterval(t);
+  }, [loadData]);
+
+  const points = useMemo(() => downsample(rows, metric.valueOf), [rows, metric]);
+  const stats = useMemo(() => computeStats(rows, metric.valueOf), [rows, metric]);
+
+  if (stations === null) return null; // valikko latautumassa
+
+  return (
+    <>
+      <div className="section-title" style={{ marginTop: 18 }}>
+        Seuratut asemat
+      </div>
+      {stations.length === 0 ? (
+        <div className="card">
+          <div className="muted">
+            Ei seurattavia asemia. Lisää asemia Seuranta-välilehdellä — historia
+            alkaa kertyä heti lisäämisen jälkeen.
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="card station-picker">
+            <select
+              aria-label="Valitse asema"
+              value={selected}
+              onChange={(e) => setSelected(e.target.value)}
+            >
+              {stations.map((s) => (
+                <option key={s.location_id} value={s.location_id}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="card">
+            {loading ? (
+              <div className="center-msg">Ladataan…</div>
+            ) : error ? (
+              <div className="center-msg">
+                {rangeValid ? "Datan haku epäonnistui." : "Tarkista aikaväli."}
+              </div>
+            ) : points.length === 0 ? (
+              <div className="center-msg">
+                Ei dataa valitulta aikaväliltä. Historia kertyy 10 min välein
+                siitä alkaen, kun asema on lisätty seurantaan.
+              </div>
+            ) : (
+              <LineChart
+                points={points}
+                color={metric.color}
+                formatAxis={metric.formatAxis}
+                formatTimeLabel={timeLabel}
+              />
+            )}
+          </div>
+
+          {stats && !loading && !error && (
+            <div className="stat-grid">
+              <div className="stat">
+                <div className="num" style={{ color: metric.color }}>
+                  {metric.formatValue(stats.now)}
+                </div>
+                <div className="cap">Nyt</div>
+              </div>
+              <div className="stat">
+                <div className="num">{metric.formatValue(stats.avg)}</div>
+                <div className="cap">Keskiarvo</div>
+              </div>
+              <div className="stat">
+                <div className="num">{metric.formatValue(stats.min)}</div>
+                <div className="cap">Pienin</div>
+              </div>
+              <div className="stat">
+                <div className="num">{metric.formatValue(stats.max)}</div>
+                <div className="cap">Suurin</div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </>
   );
 }
@@ -386,7 +573,12 @@ function CsvExport() {
       const fields = EXPORT_FIELDS.filter((f) => selected.has(f.key));
       const cols = ["measured_at", ...fields.map((f) => f.key)].join(", ");
       const { sinceISO, untilISO } = dayRangeISO(from, to);
-      const data = await fetchSnapshots<Record<string, unknown>>(cols, sinceISO, untilISO);
+      const data = await fetchSnapshots<Record<string, unknown>>(
+        "national_snapshots",
+        cols,
+        sinceISO,
+        untilISO
+      );
       if (data.length === 0) {
         setMsg("Ei dataa valitulta aikaväliltä.");
         return;
