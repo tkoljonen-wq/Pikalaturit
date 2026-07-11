@@ -50,6 +50,23 @@ export function ageSecondsFrom(iso: string | null): number | null {
   return Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000));
 }
 
+/** Pvm + kellonaika "11.7.2026 klo 14.30" (kuvaajan tooltip). */
+export function formatDateTimeLabel(t: number): string {
+  const d = new Date(t);
+  const date = d.toLocaleDateString("fi-FI", {
+    day: "numeric",
+    month: "numeric",
+    year: "numeric",
+    timeZone: TZ,
+  });
+  const time = d.toLocaleTimeString("fi-FI", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: TZ,
+  });
+  return `${date} klo ${time}`;
+}
+
 /** Tunti "00".."23" (kuvaajan 24h-akseli). */
 export function formatHourLabel(t: number): string {
   return new Date(t).toLocaleTimeString("fi-FI", {

@@ -3,6 +3,7 @@ import { supabase } from "../supabase";
 import { LineChart, type ChartPoint } from "../components/LineChart";
 import {
   formatDateLabel,
+  formatDateTimeLabel,
   formatHourLabel,
   formatNumber,
   formatPercent,
@@ -291,6 +292,8 @@ export function Kuvaajat() {
             color={metric.color}
             formatAxis={metric.formatAxis}
             formatTimeLabel={timeLabel}
+            formatValue={metric.formatValue}
+            formatTooltipTime={formatDateTimeLabel}
           />
         )}
       </div>
@@ -475,6 +478,8 @@ function StationChart({
                 color={metric.color}
                 formatAxis={metric.formatAxis}
                 formatTimeLabel={timeLabel}
+                formatValue={metric.formatValue}
+                formatTooltipTime={formatDateTimeLabel}
               />
             )}
           </div>

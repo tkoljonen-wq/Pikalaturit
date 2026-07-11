@@ -1,5 +1,9 @@
 // Kevyt SVG-viivakuvaaja (ei ulkoista kirjastoa, mobiilioptimointi: pieni bundle).
 // viewBox-pohjainen, skaalautuu kontainerin leveyteen.
+// Interaktio: hiiren osoitus tai sormella veto näyttää lähimmän pisteen
+// arvon ja aikaleiman tooltipissa.
+
+import { useRef, useState } from "react";
 
 export interface ChartPoint {
   t: number; // millisekuntia (epoch)
@@ -14,6 +18,10 @@ interface Props {
   formatAxis: (v: number) => string;
   /** Aikaleima → akselin teksti (esim. tunti tai viikonpäivä). */
   formatTimeLabel: (t: number) => string;
+  /** Tooltipin arvomuotoilu (oletus: formatAxis). */
+  formatValue?: (v: number) => string;
+  /** Tooltipin aikaleima, pvm + kellonaika (oletus: formatTimeLabel). */
+  formatTooltipTime?: (t: number) => string;
 }
 
 const W = 320;
@@ -28,8 +36,13 @@ export function LineChart({
   height = 180,
   formatAxis,
   formatTimeLabel,
+  formatValue,
+  formatTooltipTime,
 }: Props) {
   const H = height;
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [activeIdx, setActiveIdx] = useState<number | null>(null);
+
   const valid = points.filter((p): p is { t: number; v: number } => p.v != null);
   if (valid.length < 2) {
     return <div className="center-msg">Ei riittävästi dataa kuvaajaan.</div>;
@@ -65,13 +78,54 @@ export function LineChart({
   // x-akselin tekstit: 4 tasaväliä aikajanalla
   const xTicks = Array.from({ length: 5 }, (_, i) => tMin + ((tMax - tMin) * i) / 4);
 
+  // Osoittimen sijainti → lähin datapiste (viewBox-koordinaateissa).
+  function handlePointer(e: React.PointerEvent<SVGSVGElement>) {
+    const rect = svgRef.current?.getBoundingClientRect();
+    if (!rect || rect.width === 0) return;
+    const xv = ((e.clientX - rect.left) / rect.width) * W;
+    let best = 0;
+    let bestD = Infinity;
+    for (let i = 0; i < valid.length; i++) {
+      const d = Math.abs(x(valid[i]!.t) - xv);
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    }
+    setActiveIdx(best);
+  }
+
+  const active = activeIdx != null ? valid[activeIdx] ?? null : null;
+  const fmtVal = formatValue ?? formatAxis;
+  const fmtTime = formatTooltipTime ?? formatTimeLabel;
+
+  // Tooltipin mitat (SVG-teksti ei rivity → arvioidaan leveys merkkimäärästä).
+  let tip: { x: number; y: number; w: number; timeStr: string; valStr: string } | null =
+    null;
+  if (active) {
+    const timeStr = fmtTime(active.t);
+    const valStr = fmtVal(active.v);
+    const w = Math.max(timeStr.length, valStr.length) * 5.2 + 12;
+    const px = x(active.t);
+    const boxX = px + 8 + w > W - PAD_R ? px - 8 - w : px + 8;
+    tip = { x: boxX, y: PAD_T, w, timeStr, valStr };
+  }
+
   return (
     <svg
+      ref={svgRef}
       viewBox={`0 0 ${W} ${H}`}
       width="100%"
       height="auto"
       role="img"
-      style={{ display: "block" }}
+      // pan-y: pystysuuntainen sivun vieritys toimii sormella, vaakaveto ohjaa kohdistinta
+      style={{ display: "block", touchAction: "pan-y" }}
+      onPointerMove={handlePointer}
+      onPointerDown={handlePointer}
+      onPointerLeave={(e) => {
+        // Kosketuksella tooltip jää näkyviin napautuksen jälkeen
+        if (e.pointerType !== "touch") setActiveIdx(null);
+      }}
     >
       {yTicks.map((tv, i) => (
         <g key={i}>
@@ -118,6 +172,50 @@ export function LineChart({
           {formatTimeLabel(tt)}
         </text>
       ))}
+
+      {active && tip && (
+        <g pointerEvents="none">
+          <line
+            x1={x(active.t)}
+            x2={x(active.t)}
+            y1={PAD_T}
+            y2={H - PAD_B}
+            stroke="var(--text-dim)"
+            strokeWidth={0.6}
+            strokeDasharray="3 3"
+          />
+          <circle
+            cx={x(active.t)}
+            cy={y(active.v)}
+            r={3.2}
+            fill={color}
+            stroke="var(--bg-card)"
+            strokeWidth={1.4}
+          />
+          <rect
+            x={tip.x}
+            y={tip.y}
+            width={tip.w}
+            height={32}
+            rx={4}
+            fill="var(--bg-card)"
+            stroke="var(--border)"
+            strokeWidth={0.6}
+          />
+          <text x={tip.x + 6} y={tip.y + 12} fontSize={9} fill="var(--text-dim)">
+            {tip.timeStr}
+          </text>
+          <text
+            x={tip.x + 6}
+            y={tip.y + 25}
+            fontSize={10}
+            fontWeight={600}
+            fill="var(--text)"
+          >
+            {tip.valStr}
+          </text>
+        </g>
+      )}
     </svg>
   );
 }
