@@ -30,6 +30,7 @@ const METRICS: {
   key: MetricKey;
   label: string;
   color: string;
+  integerAxis: boolean;
   valueOf: (r: SnapRow) => number | null;
   formatValue: (v: number | null) => string;
   formatAxis: (v: number) => string;
@@ -38,6 +39,7 @@ const METRICS: {
     key: "charging",
     label: "Latauksessa",
     color: "var(--green)",
+    integerAxis: true,
     valueOf: (r) => r.fast_charging,
     formatValue: (v) => (v == null ? "–" : formatNumber(Math.round(v))),
     formatAxis: (v) => Math.round(v).toLocaleString("fi-FI"),
@@ -46,6 +48,7 @@ const METRICS: {
     key: "available",
     label: "Vapaana",
     color: "var(--accent)",
+    integerAxis: true,
     valueOf: (r) => r.fast_available,
     formatValue: (v) => (v == null ? "–" : formatNumber(Math.round(v))),
     formatAxis: (v) => Math.round(v).toLocaleString("fi-FI"),
@@ -54,6 +57,7 @@ const METRICS: {
     key: "occupancy",
     label: "Käyttöaste",
     color: "var(--yellow)",
+    integerAxis: false,
     valueOf: (r) => r.occupancy_percent,
     formatValue: formatPercent,
     formatAxis: (v) => `${v.toFixed(1).replace(".", ",")} %`,
@@ -294,6 +298,7 @@ export function Kuvaajat() {
             formatTimeLabel={timeLabel}
             formatValue={metric.formatValue}
             formatTooltipTime={formatDateTimeLabel}
+            integerAxis={metric.integerAxis}
           />
         )}
       </div>
@@ -480,6 +485,7 @@ function StationChart({
                 formatTimeLabel={timeLabel}
                 formatValue={metric.formatValue}
                 formatTooltipTime={formatDateTimeLabel}
+                integerAxis={metric.integerAxis}
               />
             )}
           </div>

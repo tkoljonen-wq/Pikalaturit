@@ -22,6 +22,30 @@ interface Props {
   formatValue?: (v: number) => string;
   /** Tooltipin aikaleima, pvm + kellonaika (oletus: formatTimeLabel). */
   formatTooltipTime?: (t: number) => string;
+  /** Pakota y-akselin tikit kokonaisluvuiksi (lukumäärämittarit). */
+  integerAxis?: boolean;
+}
+
+/**
+ * Siistit y-akselin tikit: askel 1/2/5 × 10^k niin, että väli [min, max]
+ * peittyy ~4 askeleella. Tikit ovat tarkkoja arvoja, joten viiva osuu
+ * täsmälleen akselin lukemiin (ei pyöristettyjä välejä).
+ */
+function niceTicks(min: number, max: number, integer: boolean): number[] {
+  if (min === max) {
+    min = Math.max(0, min - 1);
+    max = max + 1;
+  }
+  const raw = (max - min) / 4;
+  const mag = 10 ** Math.floor(Math.log10(raw));
+  const norm = raw / mag;
+  // kynnykset 1.5/3/7: antaa 4–7 tikkiä eikä harvenna akselia turhaan
+  let step = (norm <= 1.5 ? 1 : norm <= 3 ? 2 : norm <= 7 ? 5 : 10) * mag;
+  if (integer && step < 1) step = 1;
+  const start = Math.floor(min / step) * step;
+  const end = Math.ceil(max / step) * step;
+  const n = Math.round((end - start) / step);
+  return Array.from({ length: n + 1 }, (_, i) => start + i * step);
 }
 
 const W = 320;
@@ -38,6 +62,7 @@ export function LineChart({
   formatTimeLabel,
   formatValue,
   formatTooltipTime,
+  integerAxis = false,
 }: Props) {
   const H = height;
   const svgRef = useRef<SVGSVGElement>(null);
@@ -52,15 +77,11 @@ export function LineChart({
   const vs = valid.map((p) => p.v);
   const tMin = Math.min(...ts);
   const tMax = Math.max(...ts);
-  let vMin = Math.min(...vs);
-  let vMax = Math.max(...vs);
-  if (vMin === vMax) {
-    vMin -= 1;
-    vMax += 1;
-  }
-  const pad = (vMax - vMin) * 0.12;
-  vMin = Math.max(0, vMin - pad);
-  vMax = vMax + pad;
+  // Akselin ala- ja yläraja tulevat suoraan siisteistä tikeistä, jotta
+  // arvot piirtyvät täsmälleen akselin lukemien kohdalle.
+  const yTicks = niceTicks(Math.min(...vs), Math.max(...vs), integerAxis);
+  const vMin = yTicks[0]!;
+  const vMax = yTicks[yTicks.length - 1]!;
 
   const x = (t: number) =>
     PAD_L + ((t - tMin) / (tMax - tMin || 1)) * (W - PAD_L - PAD_R);
@@ -73,8 +94,6 @@ export function LineChart({
   const baseY = (H - PAD_B).toFixed(1);
   const area = `${line} L${x(tMax).toFixed(1)} ${baseY} L${x(tMin).toFixed(1)} ${baseY} Z`;
 
-  // y-akselin viivat: 4 tasaväliä
-  const yTicks = Array.from({ length: 5 }, (_, i) => vMin + ((vMax - vMin) * i) / 4);
   // x-akselin tekstit: 4 tasaväliä aikajanalla
   const xTicks = Array.from({ length: 5 }, (_, i) => tMin + ((tMax - tMin) * i) / 4);
 
