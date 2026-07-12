@@ -24,6 +24,12 @@ interface Props {
   formatTooltipTime?: (t: number) => string;
   /** Pakota y-akselin tikit kokonaisluvuiksi (lukumäärämittarit). */
   integerAxis?: boolean;
+  /**
+   * Porrasviiva: arvo pysyy edellisen mittauksen korkeudella seuraavaan
+   * mittaukseen asti. Lukumäärämittareille — suora viiva piirtäisi vinoja
+   * välikorkeuksia, joita ei koskaan mitattu.
+   */
+  step?: boolean;
 }
 
 /**
@@ -63,6 +69,7 @@ export function LineChart({
   formatValue,
   formatTooltipTime,
   integerAxis = false,
+  step = false,
 }: Props) {
   const H = height;
   const svgRef = useRef<SVGSVGElement>(null);
@@ -89,7 +96,17 @@ export function LineChart({
     PAD_T + (1 - (v - vMin) / (vMax - vMin || 1)) * (H - PAD_T - PAD_B);
 
   const line = valid
-    .map((p, i) => `${i ? "L" : "M"}${x(p.t).toFixed(1)} ${y(p.v).toFixed(1)}`)
+    .map((p, i) => {
+      const px = x(p.t).toFixed(1);
+      const py = y(p.v).toFixed(1);
+      if (i === 0) return `M${px} ${py}`;
+      // Porras: vaakasuora edellisen arvon tasolla + pystyhyppy uuteen arvoon.
+      if (step) {
+        const prevY = y(valid[i - 1]!.v).toFixed(1);
+        return prevY === py ? `L${px} ${py}` : `L${px} ${prevY} L${px} ${py}`;
+      }
+      return `L${px} ${py}`;
+    })
     .join(" ");
   const baseY = (H - PAD_B).toFixed(1);
   const area = `${line} L${x(tMax).toFixed(1)} ${baseY} L${x(tMin).toFixed(1)} ${baseY} Z`;

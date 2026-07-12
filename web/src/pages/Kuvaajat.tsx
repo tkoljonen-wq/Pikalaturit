@@ -65,7 +65,18 @@ const METRICS: {
 ];
 
 const PAGE = 1000;
-const MAX_POINTS = 180;
+
+// ── Piirtotavan valinta ─────────────────────────────────────────────────────
+// false: tarkka piirto — kaikki mittaukset piirretään sellaisenaan RAW_MAX-
+//        pisteeseen asti, pidemmillä väleillä min–max-tiivistys (vain
+//        todellisia mitattuja arvoja) ja lukumäärämittarit porrasviivana.
+// true:  aiempi toteutus — keskiarvotiivistys ~MAX_POINTS pisteeseen ja suora
+//        viiva kaikille mittareille. Vaihda tämä trueksi, jos tarkka piirto
+//        osoittautuu jollain laitteella liian raskaaksi.
+const LEGACY_RENDERING = false;
+
+const MAX_POINTS = 180; // legacy: keskiarvotiivistyksen tavoitemäärä
+const RAW_MAX = 3000; // tarkka piirto: yläraja (~3 vk dataa 10 min välein)
 
 /** ISO-aikaväli päivämääräsyötteistä: alku 00:00 → loppu seuraavan päivän 00:00 (paikallisaika). */
 function dayRangeISO(fromDate: string, toDate: string): { sinceISO: string; untilISO: string } {
@@ -131,14 +142,17 @@ function computeStats(rows: SnapRow[], valueOf: (r: SnapRow) => number | null) {
   };
 }
 
-/** Tiivistää rivit ~MAX_POINTS pisteeseen keskiarvoistamalla (kevyt SVG-piirto). */
-function downsample(
+/** Rivit sellaisinaan kuvaajapisteiksi (jokainen korkeus = mitattu arvo). */
+function rawPoints(rows: SnapRow[], valueOf: (r: SnapRow) => number | null): ChartPoint[] {
+  return rows.map((r) => ({ t: Date.parse(r.measured_at), v: valueOf(r) }));
+}
+
+/** Legacy: tiivistää rivit ~MAX_POINTS pisteeseen keskiarvoistamalla. */
+function downsampleAvg(
   rows: SnapRow[],
   valueOf: (r: SnapRow) => number | null
 ): ChartPoint[] {
-  if (rows.length <= MAX_POINTS) {
-    return rows.map((r) => ({ t: Date.parse(r.measured_at), v: valueOf(r) }));
-  }
+  if (rows.length <= MAX_POINTS) return rawPoints(rows, valueOf);
   const size = Math.ceil(rows.length / MAX_POINTS);
   const out: ChartPoint[] = [];
   for (let i = 0; i < rows.length; i += size) {
@@ -161,6 +175,53 @@ function downsample(
     out[out.length - 1] = { t: Date.parse(last.measured_at), v: lastV };
   }
   return out;
+}
+
+/**
+ * Min–max-tiivistys pitkille aikaväleille: joka lohkosta pienin ja suurin
+ * mitattu arvo omilla aikaleimoillaan, aikajärjestyksessä. Kaikki piirretyt
+ * korkeudet ovat todellisia mittauksia — huiput ja pohjat eivät silene
+ * keskiarvoiksi.
+ */
+function downsampleMinMax(
+  rows: SnapRow[],
+  valueOf: (r: SnapRow) => number | null
+): ChartPoint[] {
+  // Joka lohko tuottaa enintään 2 pistettä → tulos pysyy ≤ RAW_MAX:ssa.
+  const size = Math.ceil(rows.length / (RAW_MAX / 2));
+  const out: ChartPoint[] = [];
+  for (let i = 0; i < rows.length; i += size) {
+    let lo: { t: number; v: number } | null = null;
+    let hi: { t: number; v: number } | null = null;
+    for (const r of rows.slice(i, i + size)) {
+      const v = valueOf(r);
+      if (v == null) continue;
+      const t = Date.parse(r.measured_at);
+      if (!lo || v < lo.v) lo = { t, v };
+      if (!hi || v > hi.v) hi = { t, v };
+    }
+    if (!lo || !hi) continue;
+    if (lo.t === hi.t) out.push(lo);
+    else out.push(...(lo.t < hi.t ? [lo, hi] : [hi, lo]));
+  }
+  // Oikea reuna päättyy aina tuoreimpaan mittaukseen.
+  const last = rows[rows.length - 1]!;
+  const lastV = valueOf(last);
+  const lastT = Date.parse(last.measured_at);
+  if (lastV != null && out[out.length - 1]?.t !== lastT) {
+    out.push({ t: lastT, v: lastV });
+  }
+  return out;
+}
+
+/** Piirtotavan mukainen pistejoukko (ks. LEGACY_RENDERING yllä). */
+function toChartPoints(
+  rows: SnapRow[],
+  valueOf: (r: SnapRow) => number | null
+): ChartPoint[] {
+  if (LEGACY_RENDERING) return downsampleAvg(rows, valueOf);
+  if (rows.length <= RAW_MAX) return rawPoints(rows, valueOf);
+  return downsampleMinMax(rows, valueOf);
 }
 
 export function Kuvaajat() {
@@ -218,7 +279,7 @@ export function Kuvaajat() {
   }, [loadData]);
 
   const points = useMemo(
-    () => downsample(rows, metric.valueOf),
+    () => toChartPoints(rows, metric.valueOf),
     [rows, metric]
   );
 
@@ -307,6 +368,7 @@ export function Kuvaajat() {
             formatValue={metric.formatValue}
             formatTooltipTime={formatDateTimeLabel}
             integerAxis={metric.integerAxis}
+            step={!LEGACY_RENDERING && metric.integerAxis}
           />
         )}
       </div>
@@ -440,7 +502,7 @@ function StationChart({
     return () => clearInterval(t);
   }, [loadData]);
 
-  const points = useMemo(() => downsample(rows, metric.valueOf), [rows, metric]);
+  const points = useMemo(() => toChartPoints(rows, metric.valueOf), [rows, metric]);
   const stats = useMemo(() => computeStats(rows, metric.valueOf), [rows, metric]);
 
   if (stations === null) return null; // valikko latautumassa
@@ -494,6 +556,7 @@ function StationChart({
                 formatValue={metric.formatValue}
                 formatTooltipTime={formatDateTimeLabel}
                 integerAxis={metric.integerAxis}
+                step={!LEGACY_RENDERING && metric.integerAxis}
               />
             )}
           </div>
