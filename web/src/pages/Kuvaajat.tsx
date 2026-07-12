@@ -152,6 +152,14 @@ function downsample(
       v: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null,
     });
   }
+  // Oikea reuna: viimeinen piste on tuorein mittaus sellaisenaan, ei lohkon
+  // keskiarvo — muuten kuvaajan pää jää väärälle korkeudelle ("Nyt"-arvoon
+  // nähden) aina kun tiivistys on käytössä.
+  const last = rows[rows.length - 1]!;
+  const lastV = valueOf(last);
+  if (lastV != null) {
+    out[out.length - 1] = { t: Date.parse(last.measured_at), v: lastV };
+  }
   return out;
 }
 
