@@ -154,7 +154,8 @@ export function Seuranta() {
     await load();
   }
 
-  async function remove(id: number) {
+  async function remove(id: number, name: string | number) {
+    if (!window.confirm(`Poistetaanko ${name} seurannasta?`)) return;
     await supabase.from("watchlist").delete().eq("id", id);
     await load();
   }
@@ -347,7 +348,7 @@ export function Seuranta() {
                 <button
                   className="icon-btn"
                   aria-label="Poista seurannasta"
-                  onClick={() => remove(it.id)}
+                  onClick={() => remove(it.id, title)}
                 >
                   ✕
                 </button>
