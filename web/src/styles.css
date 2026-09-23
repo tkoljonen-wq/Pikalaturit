@@ -440,3 +440,36 @@ button.link {
   font-size: 11px;
   font-weight: 600;
 }
+
+/* Uudet asemat (Trendit) */
+.new-list { padding: 6px; }
+.new-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+}
+.new-row:not(:last-child) { border-bottom: 1px solid var(--border); }
+.new-main { min-width: 0; flex: 1; }
+/* Nimi ja lisätiedot katkaistaan, jotta rivi pysyy yhden korkuisena. */
+.new-name {
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.new-row .muted {
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.new-meta { flex: none; text-align: right; }
+.new-count {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.new-meta .muted { font-size: 11px; }

@@ -20,6 +20,14 @@ Toteutuksessa tehdyt poikkeamat kirjataan tähän:
 - **23.9.2026 — Trendit-välilehti lisätty** (ei suunnitelmassa): kuukausitrendi
   päivähuippujen keskiarvona ja Top 20 -ennätyspäivät. Koosteet lasketaan
   kannan näkymissä `national_daily_stats` / `national_monthly_stats`.
+- **23.9.2026 — "Uudet asemat" -lista Trendit-välilehdelle** (ei suunnitelmassa):
+  kymmenen uusinta pikalatausasemaa ja haku valitulta aikaväliltä, yksi rivi per
+  asema. AFIR-datassa ei ole aseman perustamis- tai avauspäivää eikä sitä saa
+  takautuvasti mistään, joten ensiesiintyminen kirjataan itse:
+  `locations.first_seen_at` / `first_fast_seen_at` ja `evses.first_seen_at`
+  (trigger täyttää kerran, migraatio 20260923120000_first_seen.sql). Ennen
+  18.6.2026 kannassa olleet asemat saivat seurannan aloitushetken ja rajataan
+  listalta pois näkymässä `new_fast_locations`.
 
 ---
 

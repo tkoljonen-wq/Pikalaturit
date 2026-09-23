@@ -2,13 +2,16 @@
 //
 //   * Kuukausitrendi — kuukauden päivähuippujen keskiarvo pylväinä.
 //   * Laturikanta    — pikalatureiden kokonaismäärä, lukema joka päivältä.
+//   * Uudet asemat   — seurannan aikana ilmestyneet pikalatausasemat, yksi
+//                      rivi per asema (ei per laturi).
 //   * Ennätyspäivät  — top 20 vuorokautta korkeimman hetkellisen
 //                      lataajamäärän mukaan, valittavalta aikaväliltä.
 //
 // Data tulee kannan koostenäkymistä (national_monthly_stats /
-// national_daily_stats, ks. 20260923090000_trend_views.sql), joten selain
-// lataa kymmeniä rivejä eikä kymmeniätuhansia mittauksia — sama sivu toimii
-// sellaisenaan myös vuosien datalla.
+// national_daily_stats / new_fast_locations, ks. 20260923090000_trend_views.sql
+// ja 20260923120000_first_seen.sql), joten selain lataa kymmeniä rivejä eikä
+// kymmeniätuhansia mittauksia — sama sivu toimii sellaisenaan myös vuosien
+// datalla.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabase";
@@ -78,6 +81,7 @@ export function Trendit() {
     <>
       <MonthlyTrend />
       <FleetSize />
+      <NewStations />
       <TopDays />
       <div className="source">
         Lähde: Fintraffic / Digitraffic, CC BY 4.0. Dataa on aggregoitu ja käsitelty
@@ -390,6 +394,239 @@ function FleetSize() {
           </div>
         </div>
       )}
+    </>
+  );
+}
+
+// ── Uudet asemat ────────────────────────────────────────────────────────────
+// Yksi rivi per ASEMA, ei per laturi: new_fast_locations palauttaa asematason
+// rivit (ks. 20260923120000_first_seen.sql).
+//
+// Päivä on se, jona asemalla nähtiin ensimmäinen pikalaturi omassa
+// aineistossa. AFIR-datassa ei ole aseman avaus- tai perustamispäivää, joten
+// tarkempaa ei ole saatavissa — eikä myöskään takautuvasti: ennen seurannan
+// alkua kannassa olleet asemat on rajattu näkymästä pois.
+
+type NewStationRow = {
+  id: string;
+  name: string | null;
+  city: string | null;
+  operator_name: string | null;
+  max_power_kw: number | null;
+  fast_evse_count: number | null;
+  first_day: string;
+};
+
+type NewRangeKey = "latest" | "d30" | "y1" | "custom";
+
+const NEW_RANGES: { key: NewRangeKey; label: string }[] = [
+  { key: "latest", label: "Uusimmat" },
+  { key: "d30", label: "30 vrk" },
+  { key: "y1", label: "12 kk" },
+  { key: "custom", label: "Oma" },
+];
+
+const NEW_LATEST_N = 10;
+// Aikavälihaun katto. Uusia asemia on tullut n. 30–40 kuukaudessa, joten 300
+// riittää yli puoleksi vuodeksi; rajan täyttyessä määrä näytetään "300+".
+const NEW_MAX = 300;
+
+/** Paikallinen päivä "YYYY-MM-DD" n vuorokautta sitten. */
+function daysAgo(n: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return isoDate(d);
+}
+
+function NewStations() {
+  const [range, setRange] = useState<NewRangeKey>("latest");
+  const [from, setFrom] = useState(() => daysAgo(30));
+  const [to, setTo] = useState(() => isoDate(new Date()));
+  const [rows, setRows] = useState<NewStationRow[]>([]);
+  const [since, setSince] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  const rangeValid = range !== "custom" || from <= to;
+  const today = isoDate(new Date());
+
+  // Seurannan alku = vanhin ensiesiintyminen. Haetaan kerran: arvo muuttuu
+  // vain jos koko kanta rakennetaan uudelleen.
+  useEffect(() => {
+    let cancelled = false;
+    void supabase
+      .from("locations")
+      .select("first_seen_at")
+      .order("first_seen_at", { ascending: true })
+      .limit(1)
+      .then(({ data }) => {
+        const v = (data as { first_seen_at: string | null }[] | null)?.[0]?.first_seen_at;
+        if (!cancelled && v) setSince(v);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const load = useCallback(
+    async (silent: boolean) => {
+      if (!rangeValid) {
+        setError(true);
+        setLoading(false);
+        return;
+      }
+      if (!silent) {
+        setLoading(true);
+        setError(false);
+      }
+      try {
+        let q = supabase
+          .from("new_fast_locations")
+          .select(
+            "id, name, city, operator_name, max_power_kw, fast_evse_count, first_day"
+          )
+          // Saman yön asemat saavat saman aikaleiman → toissijaisena nimi.
+          .order("first_fast_seen_at", { ascending: false })
+          .order("name", { ascending: true });
+        if (range === "latest") {
+          q = q.limit(NEW_LATEST_N);
+        } else {
+          const [f, t] =
+            range === "d30"
+              ? [daysAgo(30), today]
+              : range === "y1"
+                ? [daysAgo(365), today]
+                : [from, to];
+          q = q.gte("first_day", f).lte("first_day", t).limit(NEW_MAX);
+        }
+        const { data, error: err } = await q;
+        if (err) throw err;
+        setRows((data ?? []) as unknown as NewStationRow[]);
+        setError(false);
+        setLoading(false);
+      } catch {
+        if (!silent) {
+          setError(true);
+          setLoading(false);
+        }
+      }
+    },
+    [range, from, to, rangeValid, today]
+  );
+
+  useEffect(() => {
+    load(false);
+    const t = setInterval(() => load(true), REFRESH_MS);
+    return () => clearInterval(t);
+  }, [load]);
+
+  const chargers = useMemo(
+    () => rows.reduce((s, r) => s + Number(r.fast_evse_count ?? 0), 0),
+    [rows]
+  );
+
+  return (
+    <>
+      <div className="section-title" style={{ marginTop: 22 }}>
+        Uudet asemat
+      </div>
+
+      <div className="segmented" role="tablist" aria-label="Aikaväli">
+        {NEW_RANGES.map((r) => (
+          <button
+            key={r.key}
+            className={r.key === range ? "active" : ""}
+            onClick={() => setRange(r.key)}
+          >
+            {r.label}
+          </button>
+        ))}
+      </div>
+
+      {range === "custom" && (
+        <div className="card date-range">
+          <label>
+            Alkaen
+            <input
+              type="date"
+              value={from}
+              max={to}
+              onChange={(e) => setFrom(e.target.value)}
+            />
+          </label>
+          <label>
+            Päättyen
+            <input
+              type="date"
+              value={to}
+              min={from}
+              max={today}
+              onChange={(e) => setTo(e.target.value)}
+            />
+          </label>
+        </div>
+      )}
+
+      <div className="card new-list">
+        {loading ? (
+          <div className="center-msg">Ladataan…</div>
+        ) : error ? (
+          <div className="center-msg">
+            {rangeValid ? "Datan haku epäonnistui." : "Tarkista aikaväli."}
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="center-msg">
+            {range === "latest"
+              ? "Ei vielä uusia asemia. Lista täydentyy, kun aineistoon ilmestyy asema."
+              : "Ei uusia asemia valitulta aikaväliltä."}
+          </div>
+        ) : (
+          rows.map((r) => (
+            <div className="new-row" key={r.id}>
+              <div className="new-main">
+                <div className="new-name">{r.name ?? "Nimetön asema"}</div>
+                <div className="muted">
+                  {formatDayShort(r.first_day)}
+                  {r.city ? ` · ${r.city}` : ""}
+                  {r.operator_name ? ` · ${r.operator_name}` : ""}
+                </div>
+              </div>
+              <div className="new-meta">
+                <div className="new-count">{formatNumber(r.fast_evse_count)}</div>
+                <div className="muted">
+                  {r.max_power_kw
+                    ? `${formatNumber(Math.round(Number(r.max_power_kw)))} kW`
+                    : "laturia"}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {!loading && !error && range !== "latest" && rows.length > 0 && (
+        <div className="stat-grid" style={{ marginTop: 12 }}>
+          <div className="stat">
+            <div className="num" style={{ color: "var(--accent)" }}>
+              {formatNumber(rows.length)}
+              {rows.length >= NEW_MAX ? "+" : ""}
+            </div>
+            <div className="cap">Uutta asemaa</div>
+          </div>
+          <div className="stat">
+            <div className="num">{formatNumber(chargers)}</div>
+            <div className="cap">Uutta pikalaturia</div>
+          </div>
+        </div>
+      )}
+
+      <div className="muted" style={{ margin: "10px 2px 16px" }}>
+        Luku on aseman pikalatureiden määrä ja sen alla aseman suurin teho. Päivä
+        kertoo, milloin asema ilmestyi AFIR-aineistoon — se ei ole virallinen
+        avauspäivä. Aineisto päivittyy kerran vuorokaudessa.
+        {since &&
+          ` Seuranta alkoi ${formatDateFull(Date.parse(since))}; sitä ennen perustettuja asemia ei voi erottaa toisistaan.`}
+      </div>
     </>
   );
 }
