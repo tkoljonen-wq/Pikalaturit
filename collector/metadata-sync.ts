@@ -20,7 +20,8 @@ function dedupeBy<T>(rows: T[], key: (row: T) => string): T[] {
 // HUOM: rivi EI saa sisältää first_seen_at / first_fast_seen_at -kenttiä.
 // Kanta täyttää ne triggerillä kerran (20260923120000_first_seen.sql); jos ne
 // olisivat upsertin payloadissa, ne nollautuisivat joka synkronoinnissa ja
-// "Uudet asemat" -lista menisi rikki. Sama koskee evses-rivejä.
+// "Uudet pikalaturit" -lista menisi rikki. Sama koskee evses-rivejä
+// (first_seen_at / first_fast_seen_at).
 function locationRow(l: Location, seenAt: string) {
   const fastCount = l.evses.filter((e) => e.isFastCharger).length;
   const maxPowerKw = l.evses.reduce<number | null>((acc, e) => {

@@ -1,15 +1,16 @@
 // Trendit: pitkän aikavälin kehitys valtakunnallisesta datasta.
 //
-//   * Kuukausitrendi — kuukauden päivähuippujen keskiarvo pylväinä.
-//   * Laturikanta    — pikalatureiden kokonaismäärä, lukema joka päivältä.
-//   * Uudet asemat   — seurannan aikana ilmestyneet pikalatausasemat, yksi
-//                      rivi per asema (ei per laturi).
-//   * Ennätyspäivät  — top 20 vuorokautta korkeimman hetkellisen
-//                      lataajamäärän mukaan, valittavalta aikaväliltä.
+//   * Kuukausitrendi    — kuukauden päivähuippujen keskiarvo pylväinä.
+//   * Laturikanta       — pikalatureiden kokonaismäärä, lukema joka päivältä.
+//   * Uudet pikalaturit — seurannan aikana ilmestyneet uudet asemat ja
+//                         olemassa olevien asemien laajennukset, yksi rivi per
+//                         asema ja päivä.
+//   * Ennätyspäivät     — top 20 vuorokautta korkeimman hetkellisen
+//                         lataajamäärän mukaan, valittavalta aikaväliltä.
 //
 // Data tulee kannan koostenäkymistä (national_monthly_stats /
-// national_daily_stats / new_fast_locations, ks. 20260923090000_trend_views.sql
-// ja 20260923120000_first_seen.sql), joten selain lataa kymmeniä rivejä eikä
+// national_daily_stats / new_fast_chargers, ks. 20260923090000_trend_views.sql
+// ja 20260923140000_expansions.sql), joten selain lataa kymmeniä rivejä eikä
 // kymmeniätuhansia mittauksia — sama sivu toimii sellaisenaan myös vuosien
 // datalla.
 
@@ -81,7 +82,7 @@ export function Trendit() {
     <>
       <MonthlyTrend />
       <FleetSize />
-      <NewStations />
+      <NewChargers />
       <TopDays />
       <div className="source">
         Lähde: Fintraffic / Digitraffic, CC BY 4.0. Dataa on aggregoitu ja käsitelty
@@ -398,23 +399,28 @@ function FleetSize() {
   );
 }
 
-// ── Uudet asemat ────────────────────────────────────────────────────────────
-// Yksi rivi per ASEMA, ei per laturi: new_fast_locations palauttaa asematason
-// rivit (ks. 20260923120000_first_seen.sql).
+// ── Uudet pikalaturit ───────────────────────────────────────────────────────
+// Yhdistetty aikajana kahdesta tapahtumasta (näkymä new_fast_chargers, ks.
+// 20260923140000_expansions.sql):
 //
-// Päivä on se, jona asemalla nähtiin ensimmäinen pikalaturi omassa
-// aineistossa. AFIR-datassa ei ole aseman avaus- tai perustamispäivää, joten
-// tarkempaa ei ole saatavissa — eikä myöskään takautuvasti: ennen seurannan
-// alkua kannassa olleet asemat on rajattu näkymästä pois.
+//   kind = "station"   koko asema on uusi (tai AC-asemasta tuli pikalataus-
+//                      asema).
+//   kind = "expansion" olemassa olevalle asemalle lisättiin latureita.
+//
+// Yksi rivi = yhden aseman yhtenä päivänä saama erä, ei rivi per laturi.
+// Päivä on se, jona laturit ilmestyivät omaan aineistoon — AFIR-datassa ei
+// ole avaus- tai perustamispäivää, eikä sitä saa takautuvasti mistään.
 
-type NewStationRow = {
-  id: string;
+type NewChargerRow = {
+  kind: "station" | "expansion";
+  location_id: string;
   name: string | null;
   city: string | null;
   operator_name: string | null;
-  max_power_kw: number | null;
-  fast_evse_count: number | null;
-  first_day: string;
+  fast_total: number | null;
+  added_count: number;
+  added_max_power_kw: number | null;
+  added_day: string;
 };
 
 type NewRangeKey = "latest" | "d30" | "y1" | "custom";
@@ -438,11 +444,11 @@ function daysAgo(n: number): string {
   return isoDate(d);
 }
 
-function NewStations() {
+function NewChargers() {
   const [range, setRange] = useState<NewRangeKey>("latest");
   const [from, setFrom] = useState(() => daysAgo(30));
   const [to, setTo] = useState(() => isoDate(new Date()));
-  const [rows, setRows] = useState<NewStationRow[]>([]);
+  const [rows, setRows] = useState<NewChargerRow[]>([]);
   const [since, setSince] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -481,12 +487,12 @@ function NewStations() {
       }
       try {
         let q = supabase
-          .from("new_fast_locations")
+          .from("new_fast_chargers")
           .select(
-            "id, name, city, operator_name, max_power_kw, fast_evse_count, first_day"
+            "kind, location_id, name, city, operator_name, fast_total, added_count, added_max_power_kw, added_day"
           )
-          // Saman yön asemat saavat saman aikaleiman → toissijaisena nimi.
-          .order("first_fast_seen_at", { ascending: false })
+          // Saman yön erät saavat saman aikaleiman → toissijaisena nimi.
+          .order("added_at", { ascending: false })
           .order("name", { ascending: true });
         if (range === "latest") {
           q = q.limit(NEW_LATEST_N);
@@ -497,11 +503,11 @@ function NewStations() {
               : range === "y1"
                 ? [daysAgo(365), today]
                 : [from, to];
-          q = q.gte("first_day", f).lte("first_day", t).limit(NEW_MAX);
+          q = q.gte("added_day", f).lte("added_day", t).limit(NEW_MAX);
         }
         const { data, error: err } = await q;
         if (err) throw err;
-        setRows((data ?? []) as unknown as NewStationRow[]);
+        setRows((data ?? []) as unknown as NewChargerRow[]);
         setError(false);
         setLoading(false);
       } catch {
@@ -520,15 +526,22 @@ function NewStations() {
     return () => clearInterval(t);
   }, [load]);
 
-  const chargers = useMemo(
-    () => rows.reduce((s, r) => s + Number(r.fast_evse_count ?? 0), 0),
-    [rows]
-  );
+  const totals = useMemo(() => {
+    let stations = 0;
+    let expansions = 0;
+    let chargers = 0;
+    for (const r of rows) {
+      if (r.kind === "station") stations++;
+      else expansions++;
+      chargers += Number(r.added_count ?? 0);
+    }
+    return { stations, expansions, chargers };
+  }, [rows]);
 
   return (
     <>
       <div className="section-title" style={{ marginTop: 22 }}>
-        Uudet asemat
+        Uudet pikalaturit
       </div>
 
       <div className="segmented" role="tablist" aria-label="Aikaväli">
@@ -577,30 +590,40 @@ function NewStations() {
         ) : rows.length === 0 ? (
           <div className="center-msg">
             {range === "latest"
-              ? "Ei vielä uusia asemia. Lista täydentyy, kun aineistoon ilmestyy asema."
-              : "Ei uusia asemia valitulta aikaväliltä."}
+              ? "Ei vielä uusia pikalatureita. Lista täydentyy, kun aineistoon ilmestyy latureita."
+              : "Ei uusia pikalatureita valitulta aikaväliltä."}
           </div>
         ) : (
-          rows.map((r) => (
-            <div className="new-row" key={r.id}>
-              <div className="new-main">
-                <div className="new-name">{r.name ?? "Nimetön asema"}</div>
-                <div className="muted">
-                  {formatDayShort(r.first_day)}
-                  {r.city ? ` · ${r.city}` : ""}
-                  {r.operator_name ? ` · ${r.operator_name}` : ""}
+          rows.map((r) => {
+            const station = r.kind === "station";
+            return (
+              <div className="new-row" key={`${r.location_id}-${r.added_day}`}>
+                <div className="new-main">
+                  <div className="new-name">{r.name ?? "Nimetön asema"}</div>
+                  <div className="muted">
+                    {formatDayShort(r.added_day)}
+                    {r.city ? ` · ${r.city}` : ""}
+                    {r.added_max_power_kw
+                      ? ` · ${formatNumber(Math.round(Number(r.added_max_power_kw)))} kW`
+                      : ""}
+                    {r.operator_name ? ` · ${r.operator_name}` : ""}
+                  </div>
+                </div>
+                <div className="new-meta">
+                  <div
+                    className="new-count"
+                    style={station ? undefined : { color: "var(--green)" }}
+                  >
+                    {station ? "" : "+"}
+                    {formatNumber(r.added_count)}
+                  </div>
+                  <div className="muted">
+                    {station ? "uusi asema" : `nyt ${formatNumber(r.fast_total)}`}
+                  </div>
                 </div>
               </div>
-              <div className="new-meta">
-                <div className="new-count">{formatNumber(r.fast_evse_count)}</div>
-                <div className="muted">
-                  {r.max_power_kw
-                    ? `${formatNumber(Math.round(Number(r.max_power_kw)))} kW`
-                    : "laturia"}
-                </div>
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
@@ -608,24 +631,34 @@ function NewStations() {
         <div className="stat-grid" style={{ marginTop: 12 }}>
           <div className="stat">
             <div className="num" style={{ color: "var(--accent)" }}>
-              {formatNumber(rows.length)}
-              {rows.length >= NEW_MAX ? "+" : ""}
+              {formatNumber(totals.stations)}
             </div>
             <div className="cap">Uutta asemaa</div>
           </div>
           <div className="stat">
-            <div className="num">{formatNumber(chargers)}</div>
-            <div className="cap">Uutta pikalaturia</div>
+            <div className="num" style={{ color: "var(--green)" }}>
+              {formatNumber(totals.expansions)}
+            </div>
+            <div className="cap">Laajennusta</div>
+          </div>
+          <div className="stat" style={{ gridColumn: "1 / -1" }}>
+            <div className="num">
+              {formatNumber(totals.chargers)}
+              {rows.length >= NEW_MAX ? "+" : ""}
+            </div>
+            <div className="cap">Uutta pikalaturia yhteensä</div>
           </div>
         </div>
       )}
 
       <div className="muted" style={{ margin: "10px 2px 16px" }}>
-        Luku on aseman pikalatureiden määrä ja sen alla aseman suurin teho. Päivä
-        kertoo, milloin asema ilmestyi AFIR-aineistoon — se ei ole virallinen
-        avauspäivä. Aineisto päivittyy kerran vuorokaudessa.
+        Luku on kerralla ilmestyneiden pikalatureiden määrä: sininen = uusi asema,
+        vihreä = olemassa olevalle asemalle lisätyt laturit (alla aseman määrä
+        laajennuksen jälkeen). Päivä kertoo, milloin laturit ilmestyivät
+        AFIR-aineistoon — se ei ole virallinen avauspäivä. Aineisto päivittyy
+        kerran vuorokaudessa.
         {since &&
-          ` Seuranta alkoi ${formatDateFull(Date.parse(since))}; sitä ennen perustettuja asemia ei voi erottaa toisistaan.`}
+          ` Seuranta alkoi ${formatDateFull(Date.parse(since))}; sitä ennen tehtyjä lisäyksiä ei voi erottaa toisistaan.`}
       </div>
     </>
   );
