@@ -4,6 +4,7 @@ import { useAuth } from "./auth";
 import { Login } from "./pages/Login";
 import { Home } from "./pages/Home";
 import { Kuvaajat } from "./pages/Kuvaajat";
+import { Trendit } from "./pages/Trendit";
 import { Seuranta } from "./pages/Seuranta";
 import { Asetukset } from "./pages/Asetukset";
 // Kartta (Leaflet) omaan chunkkiin: ladataan vasta kun karttavälilehti avataan.
@@ -14,6 +15,7 @@ const Kartta = lazy(() =>
 const NAV = [
   { to: "/", ico: "⚡", label: "Koti", end: true },
   { to: "/kuvaajat", ico: "📈", label: "Kuvaajat", end: false },
+  { to: "/trendit", ico: "📊", label: "Trendit", end: false },
   { to: "/kartta", ico: "🗺️", label: "Kartta", end: false },
   { to: "/seuranta", ico: "⭐", label: "Seuranta", end: false },
   { to: "/asetukset", ico: "⚙️", label: "Asetukset", end: false },
@@ -35,6 +37,7 @@ function Layout() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/kuvaajat" element={<Kuvaajat />} />
+          <Route path="/trendit" element={<Trendit />} />
           <Route
             path="/kartta"
             element={

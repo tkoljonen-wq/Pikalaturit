@@ -92,3 +92,57 @@ export function formatDateLabel(t: number): string {
     timeZone: TZ,
   });
 }
+
+// ── Päivä- ja kuukausikoosteet (Trendit) ────────────────────────────────────
+// Kannan näkymät palauttavat date-sarakkeet muodossa "2026-06-01" (ilman
+// kellonaikaa ja vyöhykettä). Ne on jo laskettu Suomen aikaa noudattaen, joten
+// ne tulkitaan sellaisenaan paikalliseksi päiväksi — new Date("2026-06-01")
+// olisi UTC-keskiyö ja voisi näyttää edellisen päivän.
+
+const MONTHS_LONG = [
+  "Tammikuu", "Helmikuu", "Maaliskuu", "Huhtikuu", "Toukokuu", "Kesäkuu",
+  "Heinäkuu", "Elokuu", "Syyskuu", "Lokakuu", "Marraskuu", "Joulukuu",
+];
+
+const MONTHS_SHORT = [
+  "tammi", "helmi", "maalis", "huhti", "touko", "kesä",
+  "heinä", "elo", "syys", "loka", "marras", "joulu",
+];
+
+/** "2026-06-01" → paikallinen Date (keskiyö), ei vyöhykesiirtymää. */
+export function parseDateOnly(s: string): Date {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y!, (m ?? 1) - 1, d ?? 1);
+}
+
+/** Kuukausi x-akselille: "kesä", tammikuussa vuosiluku mukaan ("tammi 27"). */
+export function formatMonthShort(s: string): string {
+  const d = parseDateOnly(s);
+  const name = MONTHS_SHORT[d.getMonth()]!;
+  return d.getMonth() === 0 ? `${name} ${String(d.getFullYear()).slice(2)}` : name;
+}
+
+/** Kuukausi tooltipiin: "Kesäkuu 2026". */
+export function formatMonthLong(s: string): string {
+  const d = parseDateOnly(s);
+  return `${MONTHS_LONG[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+/** Päivä listaan: "pe 19.6.2026". */
+export function formatDayLong(s: string): string {
+  const d = parseDateOnly(s);
+  const wd = d.toLocaleDateString("fi-FI", { weekday: "short" });
+  return `${wd} ${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()}`;
+}
+
+/** Päivä tiiviisti: "19.6.2026". */
+export function formatDayShort(s: string): string {
+  const d = parseDateOnly(s);
+  return `${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()}`;
+}
+
+/** Paikallinen päivä muodossa "YYYY-MM-DD" (päivämääräsyötteet, date-sarakkeet). */
+export function isoDate(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}

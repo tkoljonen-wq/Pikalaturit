@@ -8,6 +8,7 @@ import {
   formatNumber,
   formatPercent,
   formatWeekdayLabel,
+  isoDate,
 } from "../lib/format";
 
 type SnapRow = {
@@ -84,12 +85,6 @@ function dayRangeISO(fromDate: string, toDate: string): { sinceISO: string; unti
   const until = new Date(`${toDate}T00:00:00`);
   until.setDate(until.getDate() + 1); // koko loppupäivä mukaan
   return { sinceISO: since.toISOString(), untilISO: until.toISOString() };
-}
-
-/** YYYY-MM-DD tämänhetkisestä paikallisajasta (oletusarvot päivämääräsyötteille). */
-function isoDate(d: Date): string {
-  const tz = d.getTimezoneOffset() * 60000;
-  return new Date(d.getTime() - tz).toISOString().slice(0, 10);
 }
 
 /** Valittu aikaväli ISO-muodossa (custom: koko päivät paikallisajassa). */
