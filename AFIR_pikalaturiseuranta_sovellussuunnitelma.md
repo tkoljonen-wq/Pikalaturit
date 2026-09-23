@@ -6,6 +6,23 @@ Pikalaturin raja: **50 kW**
 
 ---
 
+## 0. Toteutuksen poikkeamat suunnitelmasta
+
+Tämä suunnitelma on alkuperäinen, eikä sitä kirjoiteta uusiksi toteutuksen myötä.
+Toteutuksessa tehdyt poikkeamat kirjataan tähän:
+
+- **23.9.2026 — karttanäkymä (12.4) poistettu.** Otettu tuotantoon kesällä 2026,
+  mutta käyttäjä ei löytänyt sille käyttöä. Poistettu `Kartta.tsx`, reitti,
+  navikohta, kartan CSS ja Leaflet-riippuvuudet (−155 kB JS, −15,6 kB CSS).
+  Vanhat `#/kartta`-osoitteet ohjautuvat etusivulle. Asemien haku ja aseman
+  kortti (12.3, 12.5) toimivat ennallaan Seuranta-välilehdellä. Jos kartta
+  palautetaan, toteutus löytyy git-historiasta.
+- **23.9.2026 — Trendit-välilehti lisätty** (ei suunnitelmassa): kuukausitrendi
+  päivähuippujen keskiarvona ja Top 20 -ennätyspäivät. Koosteet lasketaan
+  kannan näkymissä `national_daily_stats` / `national_monthly_stats`.
+
+---
+
 ## 1. Projektin tavoite
 
 Toteuta yksityiseen käyttöön tarkoitettu PWA-sovellus, joka hyödyntää Fintrafficin / Digitrafficin AFIR-latausdataa.
@@ -706,7 +723,7 @@ Asemien järjestysvaihtoehdot:
 - operaattorin mukaan
 - käyttöasteen mukaan
 
-### 12.4 Karttanäkymä
+### 12.4 Karttanäkymä (POISTETTU 23.9.2026, ks. luku 0)
 
 Näytä kartalla pikalatausasemat.
 
