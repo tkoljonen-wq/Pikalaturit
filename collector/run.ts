@@ -1,16 +1,18 @@
 import { createServiceClient, unwrap } from "./db.js";
 import { runStatusCollection } from "./status-run.js";
 import { runMetadataSync } from "./metadata-sync.js";
+import { runVehicleStockSync } from "./vehicle-stock.js";
 
-type Mode = "status" | "metadata" | "cleanup";
+type Mode = "status" | "metadata" | "cleanup" | "vehicles";
 
 function parseMode(argv: string[]): Mode {
   const arg = argv[2];
   if (arg === "metadata") return "metadata";
   if (arg === "cleanup") return "cleanup";
+  if (arg === "vehicles") return "vehicles";
   if (arg === "status" || arg === undefined) return "status";
   throw new Error(
-    `Tuntematon moodi: ${arg} (sallitut: status | metadata | cleanup)`,
+    `Tuntematon moodi: ${arg} (sallitut: status | metadata | cleanup | vehicles)`,
   );
 }
 
@@ -23,6 +25,14 @@ async function main() {
   if (mode === "cleanup") {
     const data = unwrap(await client.rpc("cleanup_old_snapshots"));
     console.log("[collector:cleanup] OK", data);
+    return;
+  }
+
+  // Ajoneuvokanta (Traficom) on oma pieni haku eikä koske AFIR-dataa, joten
+  // sekään ei kirjaa collector_runs-riviä (sarakkeet kuvaavat AFIR-ajoja).
+  if (mode === "vehicles") {
+    const data = await runVehicleStockSync(client);
+    console.log("[collector:vehicles] OK", data);
     return;
   }
 

@@ -31,3 +31,8 @@ jobs:
       - run: npm ci
       - name: Metadatasynkronointi
         run: npm run collector -- metadata
+      # Täyssähköautojen määrä Traficomista (neljännesvuosittain). Oma askel ja
+      # always(): AFIR-synkronoinnin kaatuminen ei estä tätä eikä päinvastoin.
+      - name: Ajoneuvokanta (Traficom)
+        if: always()
+        run: npm run collector -- vehicles

@@ -2,6 +2,7 @@
 //
 //   * Kuukausitrendi    — kuukauden päivähuippujen keskiarvo pylväinä.
 //   * Laturikanta       — pikalatureiden kokonaismäärä, lukema joka päivältä.
+//   * Autoja/laturi     — täyssähköautot (Traficom) per pikalatauspiste.
 //   * Uudet pikalaturit — seurannan aikana ilmestyneet uudet asemat ja
 //                         olemassa olevien asemien laajennukset, yksi rivi per
 //                         asema ja päivä.
@@ -82,11 +83,12 @@ export function Trendit() {
     <>
       <MonthlyTrend />
       <FleetSize />
+      <EvRatio />
       <NewChargers />
       <TopDays />
       <div className="source">
-        Lähde: Fintraffic / Digitraffic, CC BY 4.0. Dataa on aggregoitu ja käsitelty
-        sovelluksessa.
+        Lähteet: Fintraffic / Digitraffic, CC BY 4.0; ajoneuvokanta Traficom, CC BY
+        4.0. Dataa on aggregoitu ja käsitelty sovelluksessa.
       </div>
     </>
   );
@@ -392,6 +394,274 @@ function FleetSize() {
           <div className="stat">
             <div className="num">{formatCountDelta(stats.growth)}</div>
             <div className="cap">Seurannan alusta {formatDayShort(stats.firstDay)}</div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ── Sähköautoja per pikalatauspiste ─────────────────────────────────────────
+// Täyssähköisten henkilö- ja pakettiautojen määrä (Traficom, taulu
+// vehicle_stock, ks. 20260923160000_vehicle_stock.sql) jaettuna saman päivän
+// pikalatauspisteiden määrällä (sama lukema kuin Laturikanta-kuvaajassa).
+//
+// Autojen määrä tunnetaan vain neljänneksen viimeiseltä päivältä. Päiväkohtainen
+// luku saadaan:
+//   * julkaistujen neljännesten välillä lineaarisella interpoloinnilla,
+//   * viimeisimmän julkaistun neljänneksen jälkeen jatkamalla sen neljänneksen
+//     kasvuvauhtia → arvio, piirretään katkoviivalla. Arvio korvautuu
+//     todellisella luvulla, kun Traficom julkaisee seuraavan neljänneksen.
+// Luvun jättäminen viimeiseen julkaistuun arvoon ei kelpaa: suhdeluku laskisi
+// keinotekoisesti joka kerta, kun latureita tulee lisää.
+
+type StockRow = { quarter: string; quarter_end: string; vehicles: number };
+
+type RatioRangeKey = "y1" | "all" | "custom";
+
+const RATIO_RANGES: { key: RatioRangeKey; label: string }[] = [
+  { key: "y1", label: "12 kk" },
+  { key: "all", label: "Kaikki" },
+  { key: "custom", label: "Oma" },
+];
+
+type RatioPoint = {
+  t: number;
+  day: string;
+  ratio: number;
+  vehicles: number;
+  chargers: number;
+  estimate: boolean;
+};
+
+/** Täyssähköautojen määrä päivälle t neljännespisteistä (ks. yllä). */
+function vehiclesAt(t: number, q: { t: number; n: number }[]): number | null {
+  if (q.length === 0 || t < q[0]!.t) return null;
+  for (let i = 1; i < q.length; i++) {
+    const a = q[i - 1]!;
+    const b = q[i]!;
+    if (t <= b.t) return a.n + ((b.n - a.n) * (t - a.t)) / (b.t - a.t);
+  }
+  const last = q[q.length - 1]!;
+  if (q.length < 2) return last.n;
+  const prev = q[q.length - 2]!;
+  return last.n + ((last.n - prev.n) * (t - last.t)) / (last.t - prev.t);
+}
+
+function formatRatio(v: number): string {
+  return v.toFixed(1).replace(".", ",");
+}
+
+function formatQuarter(q: string): string {
+  return q.replace(/^(\d{4})Q(\d)$/, "$2/$1"); // "2026Q2" → "2/2026"
+}
+
+function EvRatio() {
+  const [range, setRange] = useState<RatioRangeKey>("y1");
+  const [from, setFrom] = useState(() => daysAgo(365));
+  const [to, setTo] = useState(() => isoDate(new Date()));
+  const [stock, setStock] = useState<StockRow[]>([]);
+  const [days, setDays] = useState<FleetRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  const today = isoDate(new Date());
+  const rangeValid = range !== "custom" || from <= to;
+
+  const load = useCallback(async (silent: boolean) => {
+    if (!silent) {
+      setLoading(true);
+      setError(false);
+    }
+    try {
+      const [stockRes, dayRows] = await Promise.all([
+        supabase
+          .from("vehicle_stock")
+          .select("quarter, quarter_end, vehicles")
+          .eq("fuel", "04")
+          .in("vehicle_class", ["01", "02"])
+          .order("quarter_end", { ascending: true }),
+        fetchAllDays<FleetRow>("day, max_fast_total"),
+      ]);
+      if (stockRes.error) throw stockRes.error;
+      setStock((stockRes.data ?? []) as StockRow[]);
+      setDays(dayRows);
+      setError(false);
+      setLoading(false);
+    } catch {
+      if (!silent) {
+        setError(true);
+        setLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    load(false);
+    const t = setInterval(() => load(true), REFRESH_MS);
+    return () => clearInterval(t);
+  }, [load]);
+
+  // Henkilö- ja pakettiautot yhteen, yksi piste per neljännes.
+  const quarters = useMemo(() => {
+    const m = new Map<string, { quarter: string; t: number; n: number }>();
+    for (const r of stock) {
+      const cur = m.get(r.quarter_end) ?? {
+        quarter: r.quarter,
+        t: parseDateOnly(r.quarter_end).getTime(),
+        n: 0,
+      };
+      cur.n += Number(r.vehicles);
+      m.set(r.quarter_end, cur);
+    }
+    return [...m.values()].sort((a, b) => a.t - b.t);
+  }, [stock]);
+
+  const lastQuarter = quarters[quarters.length - 1] ?? null;
+
+  const series: RatioPoint[] = useMemo(() => {
+    const out: RatioPoint[] = [];
+    for (const d of days) {
+      const t = parseDateOnly(d.day).getTime();
+      const chargers = Number(d.max_fast_total);
+      const vehicles = vehiclesAt(t, quarters);
+      if (vehicles == null || chargers <= 0) continue;
+      out.push({
+        t,
+        day: d.day,
+        ratio: vehicles / chargers,
+        vehicles,
+        chargers,
+        estimate: lastQuarter != null && t > lastQuarter.t,
+      });
+    }
+    return out;
+  }, [days, quarters, lastQuarter]);
+
+  const visible = useMemo(() => {
+    if (range === "all") return series;
+    const [f, t] = range === "y1" ? [daysAgo(365), today] : [from, to];
+    return series.filter((p) => p.day >= f && p.day <= t);
+  }, [series, range, from, to, today]);
+
+  const points: ChartPoint[] = useMemo(
+    () => visible.map((p) => ({ t: p.t, v: p.ratio })),
+    [visible]
+  );
+
+  const first = visible[0] ?? null;
+  const last = visible[visible.length - 1] ?? null;
+  const spanDays = first && last ? (last.t - first.t) / 86_400_000 : 0;
+  const timeLabel = spanDays > 400 ? formatMonthYearLabel : formatDateLabel;
+  const seriesStart = series[0]?.day ?? null;
+
+  return (
+    <>
+      <div className="section-title" style={{ marginTop: 22 }}>
+        Sähköautoja per pikalatauspiste
+      </div>
+
+      <div className="segmented" role="tablist" aria-label="Aikaväli">
+        {RATIO_RANGES.map((r) => (
+          <button
+            key={r.key}
+            className={r.key === range ? "active" : ""}
+            onClick={() => setRange(r.key)}
+          >
+            {r.label}
+          </button>
+        ))}
+      </div>
+
+      {range === "custom" && (
+        <div className="card date-range">
+          <label>
+            Alkaen
+            <input
+              type="date"
+              value={from}
+              max={to}
+              onChange={(e) => setFrom(e.target.value)}
+            />
+          </label>
+          <label>
+            Päättyen
+            <input
+              type="date"
+              value={to}
+              min={from}
+              max={today}
+              onChange={(e) => setTo(e.target.value)}
+            />
+          </label>
+        </div>
+      )}
+
+      <div className="card">
+        {loading ? (
+          <div className="center-msg">Ladataan…</div>
+        ) : error ? (
+          <div className="center-msg">Datan haku epäonnistui.</div>
+        ) : !rangeValid ? (
+          <div className="center-msg">Tarkista aikaväli.</div>
+        ) : points.length === 0 ? (
+          <div className="center-msg">
+            {series.length === 0 ? "Ei vielä dataa." : "Ei dataa valitulta aikaväliltä."}
+          </div>
+        ) : (
+          <>
+            <LineChart
+              points={points}
+              color="var(--green)"
+              // Suhdeluku muuttuu hitaasti → tikit usein puolikkaan välein.
+              formatAxis={(v) => v.toLocaleString("fi-FI", { maximumFractionDigits: 1 })}
+              formatTimeLabel={timeLabel}
+              formatValue={(v) => `${formatRatio(v)} autoa`}
+              formatTooltipTime={formatDateFull}
+              {...(lastQuarter ? { estimateFrom: lastQuarter.t } : {})}
+            />
+            <div className="muted" style={{ marginTop: 10 }}>
+              Liikennekäytössä olevat täyssähköiset henkilö- ja pakettiautot jaettuna
+              vähintään 50 kW:n latauspisteiden määrällä (ladattavat hybridit eivät
+              ole mukana). Autojen määrä julkaistaan neljännesvuosittain, joten
+              neljännesten väliset päivät on interpoloitu.
+              {lastQuarter &&
+                ` Katkoviiva ${formatDayShort(isoDate(new Date(lastQuarter.t)))} jälkeen on arvio neljänneksen ${formatQuarter(lastQuarter.quarter)} kasvuvauhdilla — se korvautuu todellisella luvulla, kun Traficom julkaisee seuraavan neljänneksen.`}
+              {range === "y1" &&
+                seriesStart &&
+                seriesStart > daysAgo(365) &&
+                ` Dataa on ${formatDayShort(seriesStart)} alkaen, joten koko 12 kk jakso täyttyy vähitellen.`}
+            </div>
+          </>
+        )}
+      </div>
+
+      {!loading && !error && rangeValid && first && last && (
+        <div className="stat-grid">
+          <div className="stat">
+            <div className="num" style={{ color: "var(--green)" }}>
+              {formatRatio(last.ratio)}
+            </div>
+            <div className="cap">
+              Autoa / latauspiste {formatDayShort(last.day)}
+              {last.estimate ? " (arvio)" : ""}
+            </div>
+          </div>
+          <div className="stat">
+            <div className="num">{formatDelta(last.ratio, first.ratio)}</div>
+            <div className="cap">Muutos jaksolla {formatDayShort(first.day)} alkaen</div>
+          </div>
+          {lastQuarter && (
+            <div className="stat">
+              <div className="num">{formatNumber(lastQuarter.n)}</div>
+              <div className="cap">
+                Täyssähköautoja {formatQuarter(lastQuarter.quarter)} (Traficom)
+              </div>
+            </div>
+          )}
+          <div className="stat">
+            <div className="num">{formatNumber(last.chargers)}</div>
+            <div className="cap">Pikalatauspisteitä {formatDayShort(last.day)}</div>
           </div>
         </div>
       )}

@@ -11,6 +11,7 @@
     "collector": "tsx collector/run.ts",
     "db:migrate": "node --env-file-if-exists=.env scripts/migrate.mjs",
     "collect:metadata": "node --env-file-if-exists=.env --import tsx collector/run.ts metadata",
+    "collect:vehicles": "node --env-file-if-exists=.env --import tsx collector/run.ts vehicles",
     "collect:status": "node --env-file-if-exists=.env --import tsx collector/run.ts status",
     "create-user": "node --env-file-if-exists=.env scripts/create-user.mjs",
     "setup-metadata-cron": "node --env-file-if-exists=.env scripts/setup-metadata-cron.mjs"

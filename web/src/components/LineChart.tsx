@@ -31,6 +31,11 @@ interface Props {
    * välikorkeuksia, joita ei koskaan mitattu.
    */
   step?: boolean;
+  /**
+   * Tätä aikaleimaa myöhemmät pisteet ovat arvioita: viiva piirretään siitä
+   * eteenpäin katkoviivana ja tooltipiin lisätään "(arvio)".
+   */
+  estimateFrom?: number;
 }
 
 const W = 320;
@@ -49,6 +54,7 @@ export function LineChart({
   formatTooltipTime,
   integerAxis = false,
   step = false,
+  estimateFrom,
 }: Props) {
   const H = height;
   const svgRef = useRef<SVGSVGElement>(null);
@@ -74,19 +80,26 @@ export function LineChart({
   const y = (v: number) =>
     PAD_T + (1 - (v - vMin) / (vMax - vMin || 1)) * (H - PAD_T - PAD_B);
 
-  const line = valid
-    .map((p, i) => {
-      const px = x(p.t).toFixed(1);
-      const py = y(p.v).toFixed(1);
-      if (i === 0) return `M${px} ${py}`;
-      // Porras: vaakasuora edellisen arvon tasolla + pystyhyppy uuteen arvoon.
-      if (step) {
-        const prevY = y(valid[i - 1]!.v).toFixed(1);
-        return prevY === py ? `L${px} ${py}` : `L${px} ${prevY} L${px} ${py}`;
-      }
-      return `L${px} ${py}`;
-    })
-    .join(" ");
+  const pathOf = (pts: { t: number; v: number }[]) =>
+    pts
+      .map((p, i) => {
+        const px = x(p.t).toFixed(1);
+        const py = y(p.v).toFixed(1);
+        if (i === 0) return `M${px} ${py}`;
+        // Porras: vaakasuora edellisen arvon tasolla + pystyhyppy uuteen arvoon.
+        if (step) {
+          const prevY = y(pts[i - 1]!.v).toFixed(1);
+          return prevY === py ? `L${px} ${py}` : `L${px} ${prevY} L${px} ${py}`;
+        }
+        return `L${px} ${py}`;
+      })
+      .join(" ");
+  const line = pathOf(valid);
+  // Arvio-osuus alkaa viimeisestä varmasta pisteestä, jotta viivat liittyvät.
+  const splitIdx =
+    estimateFrom == null ? -1 : valid.findIndex((p) => p.t > estimateFrom);
+  const solidLine = splitIdx === -1 ? line : pathOf(valid.slice(0, Math.max(splitIdx, 1)));
+  const estLine = splitIdx === -1 ? null : pathOf(valid.slice(Math.max(splitIdx - 1, 0)));
   const baseY = (H - PAD_B).toFixed(1);
   const area = `${line} L${x(tMax).toFixed(1)} ${baseY} L${x(tMin).toFixed(1)} ${baseY} Z`;
 
@@ -119,7 +132,9 @@ export function LineChart({
     null;
   if (active) {
     const timeStr = fmtTime(active.t);
-    const valStr = fmtVal(active.v);
+    const valStr =
+      fmtVal(active.v) +
+      (estimateFrom != null && active.t > estimateFrom ? " (arvio)" : "");
     const w = Math.max(timeStr.length, valStr.length) * 5.2 + 12;
     const px = x(active.t);
     const boxX = px + 8 + w > W - PAD_R ? px - 8 - w : px + 8;
@@ -166,7 +181,7 @@ export function LineChart({
 
       <path d={area} fill={color} fillOpacity={0.14} />
       <path
-        d={line}
+        d={solidLine}
         fill="none"
         stroke={color}
         strokeWidth={1.6}
@@ -174,6 +189,17 @@ export function LineChart({
         strokeLinecap="round"
         vectorEffect="non-scaling-stroke"
       />
+      {estLine && (
+        <path
+          d={estLine}
+          fill="none"
+          stroke={color}
+          strokeWidth={1.6}
+          strokeDasharray="4 3"
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      )}
 
       {xTicks.map((tt, i) => (
         <text
