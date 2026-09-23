@@ -28,9 +28,11 @@ Toteutuksessa tehdyt poikkeamat kirjataan tähän:
   joten ensiesiintyminen kirjataan itse: `locations.first_seen_at` /
   `first_fast_seen_at` sekä `evses.first_seen_at` / `first_fast_seen_at`
   (trigger täyttää kerran; migraatiot 20260923120000_first_seen.sql ja
-  20260923140000_expansions.sql). Ennen 18.6.2026 kannassa olleet saivat
-  seurannan aloitushetken ja rajataan listalta pois näkymässä
-  `new_fast_chargers`.
+  20260923140000_expansions.sql). Kirjaus alkoi vasta 23.9.2026: siihen asti
+  kertyneet asemat saivat kaikki saman aloitusaikaleiman — myös kesken kesän
+  ilmestyneet — eivätkä ne voi näkyä listalla. Näkymä `new_fast_chargers`
+  rajaa ne pois, ja käyttöliittymä kertoo oikean aloituspäivän näkymästä
+  `tracking_info` (20260923150000_tracking_info.sql).
 
 ---
 

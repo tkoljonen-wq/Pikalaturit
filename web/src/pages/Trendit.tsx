@@ -456,17 +456,19 @@ function NewChargers() {
   const rangeValid = range !== "custom" || from <= to;
   const today = isoDate(new Date());
 
-  // Seurannan alku = vanhin ensiesiintyminen. Haetaan kerran: arvo muuttuu
-  // vain jos koko kanta rakennetaan uudelleen.
+  // Milloin uusien laturien kirjaus alkoi. HUOM: ei sama kuin aineiston keruun
+  // alku (18.6.2026) — ensiesiintymistä alettiin kirjata vasta 23.9.2026, ja
+  // sitä ennen ilmestyneet asemat saivat kaikki saman aikaleiman eikä niitä voi
+  // erottaa toisistaan. Ks. 20260923150000_tracking_info.sql. Haetaan kerran.
   useEffect(() => {
     let cancelled = false;
     void supabase
-      .from("locations")
-      .select("first_seen_at")
-      .order("first_seen_at", { ascending: true })
+      .from("tracking_info")
+      .select("new_chargers_since")
       .limit(1)
       .then(({ data }) => {
-        const v = (data as { first_seen_at: string | null }[] | null)?.[0]?.first_seen_at;
+        const v = (data as { new_chargers_since: string | null }[] | null)?.[0]
+          ?.new_chargers_since;
         if (!cancelled && v) setSince(v);
       });
     return () => {
@@ -658,7 +660,7 @@ function NewChargers() {
         AFIR-aineistoon — se ei ole virallinen avauspäivä. Aineisto päivittyy
         kerran vuorokaudessa.
         {since &&
-          ` Seuranta alkoi ${formatDateFull(Date.parse(since))}; sitä ennen tehtyjä lisäyksiä ei voi erottaa toisistaan.`}
+          ` Uusien laturien kirjaus alkoi ${formatDateFull(Date.parse(since))} — sitä ennen ilmestyneitä asemia ja laajennuksia ei voi tunnistaa takautuvasti.`}
       </div>
     </>
   );
