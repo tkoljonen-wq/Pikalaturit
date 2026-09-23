@@ -146,3 +146,15 @@ export function isoDate(d: Date): string {
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
+
+/** Pvm ilman kellonaikaa "23.9.2026" (päivätason kuvaajien tooltip). */
+export function formatDateFull(t: number): string {
+  const d = new Date(t);
+  return `${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()}`;
+}
+
+/** Kuukausi + vuosi "9/26" (usean vuoden kuvaajan aika-akseli). */
+export function formatMonthYearLabel(t: number): string {
+  const d = new Date(t);
+  return `${d.getMonth() + 1}/${String(d.getFullYear()).slice(2)}`;
+}

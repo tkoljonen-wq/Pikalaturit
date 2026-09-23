@@ -1,6 +1,7 @@
 // Trendit: pitkän aikavälin kehitys valtakunnallisesta datasta.
 //
 //   * Kuukausitrendi — kuukauden päivähuippujen keskiarvo pylväinä.
+//   * Laturikanta    — pikalatureiden kokonaismäärä, lukema joka päivältä.
 //   * Ennätyspäivät  — top 20 vuorokautta korkeimman hetkellisen
 //                      lataajamäärän mukaan, valittavalta aikaväliltä.
 //
@@ -12,15 +13,20 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabase";
 import { BarChart, type Bar } from "../components/BarChart";
+import { LineChart, type ChartPoint } from "../components/LineChart";
 import {
+  formatDateFull,
+  formatDateLabel,
   formatDayLong,
   formatDayShort,
   formatMonthLong,
   formatMonthShort,
+  formatMonthYearLabel,
   formatNumber,
   formatPercent,
   formatTime,
   isoDate,
+  parseDateOnly,
 } from "../lib/format";
 
 type MonthRow = {
@@ -40,6 +46,11 @@ type DayRow = {
   peak_at: string;
   peak_occupancy_percent: number | null;
   avg_charging: number;
+};
+
+type FleetRow = {
+  day: string;
+  max_fast_total: number;
 };
 
 // Trendiluvut muuttuvat korkeintaan keruuvälin tahtiin (10 min), joten muiden
@@ -66,6 +77,7 @@ export function Trendit() {
   return (
     <>
       <MonthlyTrend />
+      <FleetSize />
       <TopDays />
       <div className="source">
         Lähde: Fintraffic / Digitraffic, CC BY 4.0. Dataa on aggregoitu ja käsitelty
@@ -215,6 +227,168 @@ function MonthlyTrend() {
             </div>
           )}
         </>
+      )}
+    </>
+  );
+}
+
+// ── Laturikanta ─────────────────────────────────────────────────────────────
+// Pikalatureiden kokonaismäärä, yksi lukema jokaiselta vuorokaudelta.
+//
+// Lukemana on vuorokauden KORKEIN mittaus: jos Digitrafficin feedistä puuttuu
+// hetkellisesti osa asemista, vuorokauden pienin (tai viimeisin) lukema
+// notkahtaisi vaikka latureita ei ole poistettu. Aito poisto näkyy seuraavan
+// vuorokauden lukemassa.
+
+const DAY_PAGE = 1000; // PostgREST palauttaa kerralla enintään ~1000 riviä
+
+/** Kaikki päivärivit sivuttaen — riittää vuosikymmeniksi (1 rivi/vrk). */
+async function fetchAllDays<T>(columns: string): Promise<T[]> {
+  const all: T[] = [];
+  for (let from = 0; from <= 20000; from += DAY_PAGE) {
+    const { data, error } = await supabase
+      .from("national_daily_stats")
+      .select(columns)
+      .order("day", { ascending: true })
+      .range(from, from + DAY_PAGE - 1);
+    if (error) throw error;
+    const rows = (data ?? []) as unknown as T[];
+    if (rows.length === 0) break;
+    all.push(...rows);
+    if (rows.length < DAY_PAGE) break;
+  }
+  return all;
+}
+
+/** Lukumäärän muutos etumerkillä: "+250", "−12", "–" jos ei vertailukohtaa. */
+function formatCountDelta(v: number | null): string {
+  if (v == null) return "–";
+  const r = Math.round(v);
+  const sign = r > 0 ? "+" : r < 0 ? "−" : "±";
+  return `${sign}${formatNumber(Math.abs(r))}`;
+}
+
+function FleetSize() {
+  const [rows, setRows] = useState<FleetRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  const load = useCallback(async (silent: boolean) => {
+    if (!silent) {
+      setLoading(true);
+      setError(false);
+    }
+    try {
+      const data = await fetchAllDays<FleetRow>("day, max_fast_total");
+      setRows(data);
+      setError(false);
+      setLoading(false);
+    } catch {
+      if (!silent) {
+        setError(true);
+        setLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    load(false);
+    const t = setInterval(() => load(true), REFRESH_MS);
+    return () => clearInterval(t);
+  }, [load]);
+
+  const points: ChartPoint[] = useMemo(
+    () =>
+      rows.map((r) => ({
+        t: parseDateOnly(r.day).getTime(),
+        v: Number(r.max_fast_total),
+      })),
+    [rows]
+  );
+
+  const stats = useMemo(() => {
+    if (rows.length === 0) return null;
+    const first = rows[0]!;
+    const last = rows[rows.length - 1]!;
+    const now = Number(last.max_fast_total);
+    const lastT = parseDateOnly(last.day).getTime();
+    const spanDays = (lastT - parseDateOnly(first.day).getTime()) / 86_400_000;
+    // Vertailuluku n vuorokautta sitten: viimeisin rivi, joka on vähintään
+    // niin vanha (päiviä voi puuttua, jos keruu on ollut katki).
+    const target = lastT - 30 * 86_400_000;
+    let ref: FleetRow | null = null;
+    for (const r of rows) {
+      if (parseDateOnly(r.day).getTime() > target) break;
+      ref = r;
+    }
+    const growth = now - Number(first.max_fast_total);
+    return {
+      now,
+      d30: ref ? now - Number(ref.max_fast_total) : null,
+      growth,
+      perMonth: spanDays >= 30 ? (growth / spanDays) * 30.44 : null,
+      spanDays,
+      firstDay: first.day,
+    };
+  }, [rows]);
+
+  // Monen vuoden jaksolla päivämääräakseli ruuhkautuu → kuukausi/vuosi.
+  const timeLabel = stats && stats.spanDays > 400 ? formatMonthYearLabel : formatDateLabel;
+
+  return (
+    <>
+      <div className="section-title" style={{ marginTop: 22 }}>
+        Pikalatureita Suomessa
+      </div>
+
+      <div className="card">
+        {loading ? (
+          <div className="center-msg">Ladataan…</div>
+        ) : error ? (
+          <div className="center-msg">Datan haku epäonnistui.</div>
+        ) : points.length === 0 ? (
+          <div className="center-msg">Ei vielä dataa.</div>
+        ) : (
+          <>
+            <LineChart
+              points={points}
+              color="var(--accent)"
+              formatAxis={(v) => Math.round(v).toLocaleString("fi-FI")}
+              formatTimeLabel={timeLabel}
+              formatValue={(v) => formatNumber(Math.round(v))}
+              formatTooltipTime={formatDateFull}
+              integerAxis
+              step
+            />
+            <div className="muted" style={{ marginTop: 10 }}>
+              Vähintään 50 kW:n latauspisteiden määrä, yksi lukema vuorokaudessa
+              (vuorokauden korkein mittaus). Huomaa, että y-akseli ei ala nollasta.
+            </div>
+          </>
+        )}
+      </div>
+
+      {stats && !loading && !error && (
+        <div className="stat-grid">
+          <div className="stat">
+            <div className="num" style={{ color: "var(--accent)" }}>
+              {formatNumber(stats.now)}
+            </div>
+            <div className="cap">Pikalatureita nyt</div>
+          </div>
+          <div className="stat">
+            <div className="num">{formatCountDelta(stats.d30)}</div>
+            <div className="cap">Muutos 30 vrk</div>
+          </div>
+          <div className="stat">
+            <div className="num">{formatCountDelta(stats.perMonth)}</div>
+            <div className="cap">Kasvu / kk keskimäärin</div>
+          </div>
+          <div className="stat">
+            <div className="num">{formatCountDelta(stats.growth)}</div>
+            <div className="cap">Seurannan alusta {formatDayShort(stats.firstDay)}</div>
+          </div>
+        </div>
       )}
     </>
   );
