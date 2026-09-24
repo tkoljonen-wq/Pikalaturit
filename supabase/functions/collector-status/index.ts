@@ -136,12 +136,17 @@ Deno.serve(async (req: Request) => {
 
   try {
     // 1. EVSE-metadata kannasta (sivuttaen, ei 23 MB:n locations/all)
-    type EvseRow = { id: string; location_id: string; is_fast_charger: boolean | null };
+    type EvseRow = {
+      id: string;
+      location_id: string;
+      is_fast_charger: boolean | null;
+      is_active: boolean;
+    };
     const evses: EvseRow[] = [];
     for (let from = 0; ; from += 1000) {
       const { data, error } = await supabase
         .from("evses")
-        .select("id, location_id, is_fast_charger")
+        .select("id, location_id, is_fast_charger, is_active")
         .range(from, from + 999);
       if (error) throw new Error(`evses-luku: ${error.message}`);
       if (!data || data.length === 0) break;
@@ -178,7 +183,9 @@ Deno.serve(async (req: Request) => {
         s = emptyCounts();
         byStation.set(e.location_id, s);
       }
-      if (e.is_fast_charger !== true) continue;
+      // Poistuneet (is_active=false) eivät kuulu kapasiteettiin — ilman tätä ne
+      // jäivät laskuun ikuisesti "tuntemattomina". Asema saa silti rivin (0).
+      if (e.is_fast_charger !== true || !e.is_active) continue;
       const cls = idx.get(e.id) ?? "unknown";
       add(national, cls);
       add(s, cls);

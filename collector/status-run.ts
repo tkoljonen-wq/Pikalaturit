@@ -13,6 +13,7 @@ interface EvseRow {
   id: string;
   location_id: string;
   is_fast_charger: boolean | null;
+  is_active: boolean;
 }
 
 /**
@@ -26,12 +27,13 @@ export async function runStatusCollection(
   const evseRows = await fetchAllRows<EvseRow>(
     client,
     "evses",
-    "id, location_id, is_fast_charger",
+    "id, location_id, is_fast_charger, is_active",
   );
   const evses: AggregatableEvse[] = evseRows.map((r) => ({
     id: r.id,
     locationId: r.location_id,
     isFastCharger: r.is_fast_charger === true,
+    isActive: r.is_active,
   }));
 
   // 2. AFIR-statukset

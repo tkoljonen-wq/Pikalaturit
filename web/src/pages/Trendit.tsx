@@ -676,13 +676,17 @@ function EvRatio() {
 //   kind = "station"   koko asema on uusi (tai AC-asemasta tuli pikalataus-
 //                      asema).
 //   kind = "expansion" olemassa olevalle asemalle lisättiin latureita.
+//   kind = "operator_change"
+//                      olemassa oleva asema uudella operaattorilla/tunnisteella
+//                      (esim. Helen → Plugit 9/2026) — ei uusia latureita.
+//                      Ks. 20260924100000_operator_change.sql.
 //
 // Yksi rivi = yhden aseman yhtenä päivänä saama erä, ei rivi per laturi.
 // Päivä on se, jona laturit ilmestyivät omaan aineistoon — AFIR-datassa ei
 // ole avaus- tai perustamispäivää, eikä sitä saa takautuvasti mistään.
 
 type NewChargerRow = {
-  kind: "station" | "expansion";
+  kind: "station" | "expansion" | "operator_change";
   location_id: string;
   name: string | null;
   city: string | null;
@@ -691,6 +695,7 @@ type NewChargerRow = {
   added_count: number;
   added_max_power_kw: number | null;
   added_day: string;
+  previous_operator: string | null;
 };
 
 type NewRangeKey = "latest" | "d30" | "y1" | "custom";
@@ -761,7 +766,7 @@ function NewChargers() {
         let q = supabase
           .from("new_fast_chargers")
           .select(
-            "kind, location_id, name, city, operator_name, fast_total, added_count, added_max_power_kw, added_day"
+            "kind, location_id, name, city, operator_name, fast_total, added_count, added_max_power_kw, added_day, previous_operator"
           )
           // Saman yön erät saavat saman aikaleiman → toissijaisena nimi.
           .order("added_at", { ascending: false })
@@ -801,13 +806,19 @@ function NewChargers() {
   const totals = useMemo(() => {
     let stations = 0;
     let expansions = 0;
+    let changes = 0;
     let chargers = 0;
     for (const r of rows) {
+      // Operaattorin vaihto ei tuo uusia latureita → ei summaan.
+      if (r.kind === "operator_change") {
+        changes++;
+        continue;
+      }
       if (r.kind === "station") stations++;
       else expansions++;
       chargers += Number(r.added_count ?? 0);
     }
-    return { stations, expansions, chargers };
+    return { stations, expansions, changes, chargers };
   }, [rows]);
 
   return (
@@ -868,6 +879,7 @@ function NewChargers() {
         ) : (
           rows.map((r) => {
             const station = r.kind === "station";
+            const change = r.kind === "operator_change";
             return (
               <div className="new-row" key={`${r.location_id}-${r.added_day}`}>
                 <div className="new-main">
@@ -884,13 +896,24 @@ function NewChargers() {
                 <div className="new-meta">
                   <div
                     className="new-count"
-                    style={station ? undefined : { color: "var(--green)" }}
+                    style={
+                      station
+                        ? undefined
+                        : { color: change ? "var(--text-dim)" : "var(--green)" }
+                    }
                   >
-                    {station ? "" : "+"}
+                    {station || change ? "" : "+"}
                     {formatNumber(r.added_count)}
                   </div>
                   <div className="muted">
-                    {station ? "uusi asema" : `nyt ${formatNumber(r.fast_total)}`}
+                    {station
+                      ? "uusi asema"
+                      : change
+                        ? // Alarivi katkeaa kapealla näytöllä → edeltäjä tänne.
+                          r.previous_operator
+                          ? `ennen ${r.previous_operator}`
+                          : "operaattori vaihtui"
+                        : `nyt ${formatNumber(r.fast_total)}`}
                   </div>
                 </div>
               </div>
@@ -913,6 +936,14 @@ function NewChargers() {
             </div>
             <div className="cap">Laajennusta</div>
           </div>
+          {totals.changes > 0 && (
+            <div className="stat" style={{ gridColumn: "1 / -1" }}>
+              <div className="num" style={{ color: "var(--text-dim)" }}>
+                {formatNumber(totals.changes)}
+              </div>
+              <div className="cap">Operaattorin vaihtoa (ei uusia latureita)</div>
+            </div>
+          )}
           <div className="stat" style={{ gridColumn: "1 / -1" }}>
             <div className="num">
               {formatNumber(totals.chargers)}
@@ -926,7 +957,8 @@ function NewChargers() {
       <div className="muted" style={{ margin: "10px 2px 16px" }}>
         Luku on kerralla ilmestyneiden pikalatureiden määrä: sininen = uusi asema,
         vihreä = olemassa olevalle asemalle lisätyt laturit (alla aseman määrä
-        laajennuksen jälkeen). Päivä kertoo, milloin laturit ilmestyivät
+        laajennuksen jälkeen), harmaa = olemassa oleva asema, joka siirtyi
+        toiselle operaattorille (ei lasketa uusiin latureihin). Päivä kertoo, milloin laturit ilmestyivät
         AFIR-aineistoon — se ei ole virallinen avauspäivä. Aineisto päivittyy
         kerran vuorokaudessa.
         {since &&

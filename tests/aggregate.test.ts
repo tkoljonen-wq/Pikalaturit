@@ -147,6 +147,19 @@ describe("flat-variantit (collector-polku)", () => {
     expect(stations.get("LOC-B")!.fastTotal).toBe(1); // B2 ei ole fast
     expect(stations.get("LOC-B")!.fastAvailable).toBe(1);
   });
+
+  it("poistuneet EVSE:t (isActive=false) eivät kuulu kapasiteettiin", () => {
+    const withRemoved: AggregatableEvse[] = [
+      ...evses,
+      { id: "A3", locationId: "LOC-A", isFastCharger: true, isActive: false },
+      { id: "C1", locationId: "LOC-C", isFastCharger: true, isActive: false },
+    ];
+    expect(aggregateNationalFlat(withRemoved, idx).fastTotal).toBe(3);
+    expect(aggregateNationalFlat(withRemoved, idx).fastUnknown).toBe(0);
+    const stations = aggregateStationsFlat(withRemoved, idx);
+    expect(stations.get("LOC-A")!.fastTotal).toBe(2);
+    expect(stations.get("LOC-C")!.fastTotal).toBe(0); // rivi säilyy, nollana
+  });
 });
 
 describe("aggregateNational: fixture-savutesti", () => {

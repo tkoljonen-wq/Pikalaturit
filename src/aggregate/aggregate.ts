@@ -15,6 +15,11 @@ export interface AggregatableEvse {
   id: string;
   locationId: string;
   isFastCharger: boolean;
+  /**
+   * false = EVSE puuttui viimeisimmästä metadatahausta (poistunut AFIR:sta).
+   * Ei lasketa kapasiteettiin; asema saa silti rivin (fast_total = 0).
+   */
+  isActive?: boolean;
 }
 
 interface Counts {
@@ -43,7 +48,7 @@ function emptyCounts(): Counts {
 
 /**
  * Aggregoi pikalaturi-EVSE:t statusluokkien mukaan.
- * - Vain `isFastCharger`-EVSE:t lasketaan.
+ * - Vain `isFastCharger`-EVSE:t lasketaan, eikä poistuneita (`isActive === false`).
  * - Puuttuva status -> `unknown` (statusClass-oletus).
  * - `excluded` (PLANNED/REMOVED) jätetään kokonaan pois (ei kapasiteettia, §8).
  */
@@ -53,7 +58,7 @@ function countEvses(
 ): Counts {
   const c = emptyCounts();
   for (const evse of evses) {
-    if (!evse.isFastCharger) continue;
+    if (!evse.isFastCharger || evse.isActive === false) continue;
     const status = statuses.get(evse.id);
     const cls = status ? status.statusClass : classifyStatus(null);
 
